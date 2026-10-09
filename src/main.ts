@@ -139,8 +139,53 @@ try {
     uid = 'u_' + Math.random().toString(36).slice(2, 10);
     localStorage.setItem('user_uid', uid);
   }
+  const storedVotes = localStorage.getItem('my_votes');
+  if (storedVotes) {
+    const arr = JSON.parse(storedVotes);
+    if (Array.isArray(arr)) {
+      myV = new Set(arr);
+    }
+  }
+  const storedSummary = localStorage.getItem('coop_votes_summary');
+  if (storedSummary) {
+    const parsed = JSON.parse(storedSummary);
+    if (parsed && parsed.votes) {
+      votes = parsed.votes;
+      vTotal = parsed.vTotal || 0;
+    }
+  }
 } catch (e) {
   uid = 'u_' + Math.random().toString(36).slice(2, 10);
+}
+
+function syncLocalVotesSummary() {
+  // If running without backend, synthesize the votes summary and voter count so numbers update immediately
+  const localVotesMap: Record<string, { n: number; uids: string[]; names: string[] }> = { ...votes };
+  for (const g of games) {
+    if (!localVotesMap[g.id]) {
+      localVotesMap[g.id] = { n: 0, uids: [], names: [] };
+    }
+  }
+  games.forEach(g => {
+    const isMine = myV.has(g.id);
+    const existing = localVotesMap[g.id] || { n: 0, uids: [], names: [] };
+    const hadMine = existing.uids.includes(uid);
+    if (isMine && !hadMine) {
+      existing.n++;
+      existing.uids.push(uid);
+      if (nick && !existing.names.includes(nick)) existing.names.push(nick);
+    } else if (!isMine && hadMine) {
+      existing.n = Math.max(0, existing.n - 1);
+      existing.uids = existing.uids.filter(x => x !== uid);
+      if (nick) existing.names = existing.names.filter(x => x !== nick);
+    }
+    localVotesMap[g.id] = existing;
+  });
+  votes = localVotesMap;
+  vTotal = Math.max(myV.size > 0 ? 1 : 0, Object.values(votes).filter(v => v.n > 0).length ? 1 : 0);
+  try {
+    localStorage.setItem('coop_votes_summary', JSON.stringify({ votes, vTotal }));
+  } catch (e) {}
 }
 
 let audioCtx: AudioContext | null = null;
@@ -1204,9 +1249,13 @@ async function toggleVote(id: string, btn?: HTMLElement) {
   }
 
   myV = n;
+  if (!backendAvailable) {
+    syncLocalVotesSummary();
+  }
   if (filter === 'votes') render();
   else updVoteUI();
   refreshDetVote();
+  if ($('vp').classList.contains('on')) renderVP(false);
 
   try {
     localStorage.setItem('my_votes', JSON.stringify([...n]));
@@ -1221,6 +1270,10 @@ async function toggleVote(id: string, btn?: HTMLElement) {
       });
       if (res.status === 404) {
         backendAvailable = false;
+        syncLocalVotesSummary();
+        updVoteUI();
+        refreshDetVote();
+        if ($('vp').classList.contains('on')) renderVP(false);
         toast(!wasVoted ? 'وصل صوتك بنجاح ✅' : 'تم سحب صوتك');
       } else if (!res.ok) {
         throw new Error();
@@ -1228,6 +1281,10 @@ async function toggleVote(id: string, btn?: HTMLElement) {
         toast(!wasVoted ? 'وصل صوتك مباشرةً ✅' : 'تم سحب صوتك');
       }
     } catch (e) {
+      syncLocalVotesSummary();
+      updVoteUI();
+      refreshDetVote();
+      if ($('vp').classList.contains('on')) renderVP(false);
       toast(!wasVoted ? 'وصل صوتك بنجاح ✅' : 'تم سحب صوتك');
     } finally {
       setTimeout(() => {
@@ -1423,7 +1480,10 @@ function renderVP(anim?: boolean) {
         }
         votes = {};
         myV.clear();
-        try { localStorage.removeItem('my_votes'); } catch (e) {}
+        try { 
+          localStorage.removeItem('my_votes'); 
+          localStorage.removeItem('coop_votes_summary');
+        } catch (e) {}
         renderVP(false);
         render();
         toast('تم تصفير الأصوات');
@@ -1785,10 +1845,20 @@ let lastVotesT = 0;
   setAdmin(admStored);
 
   // Render initial / cached games immediately so screen is NEVER blank
+  if (myV.size > 0 && Object.keys(votes).length === 0) {
+    syncLocalVotesSummary();
+  }
   render();
+  updVoteUI();
+  refreshDetVote();
 
   await fetchGames();
   await fetchVotes();
+  if (!backendAvailable) {
+    syncLocalVotesSummary();
+    updVoteUI();
+    refreshDetVote();
+  }
   if (backendAvailable) {
     setupSSE();
   }
