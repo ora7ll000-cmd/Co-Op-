@@ -1,6 +1,5 @@
 // Co-Op Web Application - Main Logic
-import defaultGames from '../data/games.json';
-import defaultConfig from '../data/config.json';
+import { defaultGames, DEFAULT_ADMIN_CONFIG } from './initialData';
 
 type Game = {
   id: string;
@@ -91,8 +90,8 @@ function saveGamesToLocal(newGames: Game[]) {
 
 async function clientCheckPassword(pass: string): Promise<boolean> {
   try {
-    let salt = (defaultConfig as any)?.salt || 'e8455117c10f8daa';
-    let targetHash = (defaultConfig as any)?.hash || '8b679776a6ee44f2ae49c49480fd96906b989f286b651a4be6cdda6a5643e392';
+    let salt = DEFAULT_ADMIN_CONFIG.salt || 'e8455117c10f8daa';
+    let targetHash = DEFAULT_ADMIN_CONFIG.hash || '8b679776a6ee44f2ae49c49480fd96906b989f286b651a4be6cdda6a5643e392';
     const customCfg = localStorage.getItem('coop_admin_cfg');
     if (customCfg) {
       try {
