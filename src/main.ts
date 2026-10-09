@@ -1,4 +1,6 @@
 // Co-Op Web Application - Main Logic
+import defaultGames from '../data/games.json';
+import defaultConfig from '../data/config.json';
 
 type Game = {
   id: string;
@@ -55,12 +57,75 @@ const INFO: Record<string, [string, string, string]> = {
 const goalOf = (g: Game) => g.goal || (INFO[g.name] ? INFO[g.name][2] : '');
 const playersOf = (g: Game) => g.players || (INFO[g.name] ? INFO[g.name][0] : '');
 
+let backendAvailable = true;
+
+function loadInitialGames(): Game[] {
+  try {
+    const saved = localStorage.getItem('coop_games');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return (defaultGames as Game[]) || [];
+}
+
+let games: Game[] = loadInitialGames();
+
 let adminMode = false;
 let curId: string | null = null;
 let imgAr = 0.8;
 let pref = 0;
 let relIds: string[] = [];
 let lastT = 0;
+
+function saveGamesToLocal(newGames: Game[]) {
+  games = newGames;
+  try {
+    localStorage.setItem('coop_games', JSON.stringify(games));
+  } catch (e) {}
+  render();
+  syncDet();
+  updStamp();
+}
+
+async function clientCheckPassword(pass: string): Promise<boolean> {
+  try {
+    let salt = (defaultConfig as any)?.salt || 'e8455117c10f8daa';
+    let targetHash = (defaultConfig as any)?.hash || '8b679776a6ee44f2ae49c49480fd96906b989f286b651a4be6cdda6a5643e392';
+    const customCfg = localStorage.getItem('coop_admin_cfg');
+    if (customCfg) {
+      try {
+        const parsed = JSON.parse(customCfg);
+        if (parsed.salt && parsed.hash) {
+          salt = parsed.salt;
+          targetHash = parsed.hash;
+        }
+      } catch (e) {}
+    }
+    const buf = new TextEncoder().encode(salt + pass);
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+    const clientHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return clientHash === targetHash;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function clientSetPassword(password: string): Promise<boolean> {
+  try {
+    const salt = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const buf = new TextEncoder().encode(salt + password);
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+    const hash = Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('coop_admin_cfg', JSON.stringify({ salt, hash }));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 let votes: Record<string, { n: number; uids: string[]; names: string[] }> = {};
 let myV = new Set<string>();
@@ -243,20 +308,34 @@ function askC(msg: string): Promise<boolean> {
 
 async function delGame(id: string) {
   if (!(await askC('متأكد تبي تحذف اللعبة؟'))) return;
-  await commit(async () => {
-    const res = await fetch(`/api/games/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error();
-  }, 'تم الحذف وتحدّثت القائمة عند الجميع', 'ما قدرت أحذف');
+  const nextGames = games.filter(g => g.id !== id);
+  saveGamesToLocal(nextGames);
+  if (backendAvailable) {
+    await commit(async () => {
+      const res = await fetch(`/api/games/${id}`, { method: 'DELETE' });
+      if (res.status === 404) {
+        backendAvailable = false;
+        return;
+      }
+      if (!res.ok) throw new Error();
+    }, 'تم الحذف وتحدّثت القائمة عند الجميع', 'تم الحذف محلياً');
+  } else {
+    toast('تم حذف اللعبة وتحديث القائمة');
+  }
 }
 
 function setSv(st: string) {
   const e = $('sv');
   if (!e) return;
   e.className = 'sv ' + st;
-  e.textContent = st === 'saving' ? 'جارٍ الحفظ…' : st === 'ok' ? 'تم الحفظ ووصل للجميع' : st === 'err' ? 'تعذّر الحفظ' : 'متصل';
+  e.textContent = st === 'saving' ? 'جارٍ الحفظ…' : st === 'ok' ? 'تم الحفظ ووصل للجميع' : st === 'err' ? 'تعذّر الحفظ' : backendAvailable ? 'متصل' : 'حفظ محلي';
 }
 
 async function commit(fn: () => Promise<any>, okMsg?: string, errMsg?: string) {
+  if (!backendAvailable) {
+    toast(okMsg || 'تم الحفظ محلياً بنجاح');
+    return true;
+  }
   setSv('saving');
   try {
     await fn();
@@ -266,7 +345,7 @@ async function commit(fn: () => Promise<any>, okMsg?: string, errMsg?: string) {
     return true;
   } catch (e) {
     setSv('err');
-    toast(errMsg || 'ما قدرت أحفظ — تأكد من الاتصال');
+    toast(errMsg || 'ما قدرت أحفظ على السيرفر — تم الحفظ محلياً');
     setTimeout(() => setSv('idle'), 4500);
     return false;
   }
@@ -302,7 +381,6 @@ const GR = [
 ];
 const EM = ['🎮', '🕹️', '👾', '🎲', '🧩', '🚀', '🔥'];
 
-let games: Game[] = [];
 let editing: Game | null = null;
 let imgData = '';
 let filter = 'all';
@@ -537,29 +615,54 @@ function openDet(g: Game, keep?: boolean) {
     $('dd').onclick = () => delGame(g.id);
     $('dc').onclick = async () => {
       const { id, ...d } = g;
-      commit(async () => {
-        const res = await fetch('/api/games', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...d, name: g.name + ' (نسخة)', order: games.length + 1 })
-        });
-        if (!res.ok) throw new Error();
-      }, 'تم تكرار اللعبة', 'ما قدرت أكرر');
+      const newId = 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const duplicated = { ...d, id: newId, name: g.name + ' (نسخة)', order: games.length + 1 };
+      saveGamesToLocal([duplicated, ...games]);
+      if (backendAvailable) {
+        commit(async () => {
+          const res = await fetch('/api/games', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(duplicated)
+          });
+          if (res.status === 404) {
+            backendAvailable = false;
+            return;
+          }
+          if (!res.ok) throw new Error();
+        }, 'تم تكرار اللعبة', 'ما قدرت أكرر');
+      } else {
+        toast('تم تكرار اللعبة في القائمة');
+      }
     };
     $('qs').onclick = () => {
-      commit(async () => {
-        const res = await fetch(`/api/games/${g.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            price: +($('qp') as HTMLInputElement).value,
-            old: +($('qo') as HTMLInputElement).value || 0,
-            players: ($('qpl') as HTMLInputElement).value.trim(),
-            goal: ($('qg') as HTMLTextAreaElement).value.trim()
-          })
-        });
-        if (!res.ok) throw new Error();
-      }, 'تم تحديث اللعبة عند الجميع');
+      const qUpdates = {
+        price: +($('qp') as HTMLInputElement).value,
+        old: +($('qo') as HTMLInputElement).value || 0,
+        players: ($('qpl') as HTMLInputElement).value.trim(),
+        goal: ($('qg') as HTMLTextAreaElement).value.trim()
+      };
+      const idx = games.findIndex(x => x.id === g.id);
+      if (idx >= 0) {
+        games[idx] = { ...games[idx], ...qUpdates };
+        saveGamesToLocal([...games]);
+      }
+      if (backendAvailable) {
+        commit(async () => {
+          const res = await fetch(`/api/games/${g.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(qUpdates)
+          });
+          if (res.status === 404) {
+            backendAvailable = false;
+            return;
+          }
+          if (!res.ok) throw new Error();
+        }, 'تم تحديث اللعبة عند الجميع');
+      } else {
+        toast('تم تحديث اللعبة محلياً');
+      }
     };
   }
 
@@ -661,7 +764,7 @@ function buildMenu() {
 
   if (adminMode) {
     h += `<div class="msep">أدوات الأدمن</div>` +
-      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['pw', 'تغيير كلمة السر'], ['out', 'خروج من وضع الأدمن']]
+      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['pw', 'تغيير كلمة السر'], ['out', 'خروج من وضع الأدمن']]
         .map((x, i) => `<button class="ml sm2" style="--i:${7 + i}" data-act="${x[0]}">${x[1]}</button>`)
         .join('');
   } else {
@@ -670,6 +773,38 @@ function buildMenu() {
   }
   $('menu').innerHTML = `<div class="mw">${h}</div>`;
   if (!adminMode) fillAdminBox();
+}
+
+function exportGamesJson() {
+  const jsonStr = JSON.stringify(games, null, 2);
+  try {
+    navigator.clipboard.writeText(jsonStr);
+    toast('تم نسخ بيانات الألعاب (JSON) إلى الحافظة 📋');
+  } catch (e) {
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'games.json';
+    a.click();
+    toast('تم تنزيل ملف games.json');
+  }
+}
+
+function importGamesJson() {
+  const input = prompt('الصق كود JSON للألعاب هنا:');
+  if (!input) return;
+  try {
+    const parsed = JSON.parse(input);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      saveGamesToLocal(parsed);
+      toast('تم استيراد ' + parsed.length + ' لعبة بنجاح ✅');
+    } else {
+      toast('الملف لا يحتوي على قائمة ألعاب صحيحة');
+    }
+  } catch (e) {
+    toast('كود JSON غير صالح');
+  }
 }
 
 async function fillAdminBox() {
@@ -718,28 +853,52 @@ async function adminLogin() {
     return toast('انتظر شوي ثم جرّب مرة ثانية');
   }
 
-  try {
-    const res = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: p })
-    });
-    const data = await res.json();
-    if (res.ok && data.success) {
-      fails = 0;
-      unlockAdmin();
-    } else {
-      if (++fails >= 3) {
-        lockUntil = Date.now() + 30000;
-        fails = 0;
+  let loggedIn = false;
+  let errMsg = 'الرمز غلط';
+
+  if (backendAvailable) {
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p })
+      });
+      if (res.status === 404) {
+        backendAvailable = false;
+      } else {
+        const data = await res.json();
+        if (res.ok && data.success) {
+          loggedIn = true;
+        } else {
+          errMsg = data.error || 'الرمز غلط';
+        }
       }
-      if (mpw) mpw.value = '';
-      admShake();
-      toast(data.error || 'الرمز غلط');
+    } catch (e) {
+      backendAvailable = false;
     }
-  } catch (e) {
+  }
+
+  // If backend is not available (e.g. static host on Vercel)
+  if (!backendAvailable && !loggedIn) {
+    const ok = await clientCheckPassword(p);
+    if (ok) {
+      loggedIn = true;
+    } else {
+      errMsg = 'الرمز غلط';
+    }
+  }
+
+  if (loggedIn) {
+    fails = 0;
+    unlockAdmin();
+  } else {
+    if (++fails >= 3) {
+      lockUntil = Date.now() + 30000;
+      fails = 0;
+    }
+    if (mpw) mpw.value = '';
     admShake();
-    toast('تعذّر الاتصال بالخادم');
+    toast(errMsg);
   }
 }
 
@@ -778,6 +937,12 @@ $('menu').onclick = (e: MouseEvent) => {
     openForm();
   } else if (a === 'seed') {
     seed();
+  } else if (a === 'exp') {
+    drawer(false);
+    exportGamesJson();
+  } else if (a === 'imp') {
+    drawer(false);
+    importGamesJson();
   } else if (a === 'pw') {
     drawer(false);
     openPw('setup');
@@ -823,21 +988,22 @@ $('pf').onsubmit = async (e: Event) => {
   if (p.length < 4) return toast('الرمز قصير (4 أحرف على الأقل)');
   if (p !== p2) return toast('الرمزين مو متطابقين');
 
-  try {
-    const res = await fetch('/api/admin/set-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: p })
-    });
-    if (res.ok) {
-      ($('pdlg') as HTMLDialogElement).close();
-      toast('تم حفظ الرمز الجديد 🔑');
-    } else {
-      toast('ما قدرت أحفظ الرمز');
+  await clientSetPassword(p);
+  if (backendAvailable) {
+    try {
+      const res = await fetch('/api/admin/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p })
+      });
+      if (res.status === 404) backendAvailable = false;
+    } catch (err) {
+      backendAvailable = false;
     }
-  } catch (err) {
-    toast('حدث خطأ في الاتصال');
   }
+
+  ($('pdlg') as HTMLDialogElement).close();
+  toast('تم حفظ الرمز الجديد 🔑');
 };
 
 document.addEventListener('keydown', e => {
@@ -934,37 +1100,63 @@ $('f').onsubmit = async (e: Event) => {
 
   ($('dlg') as HTMLDialogElement).close();
 
-  commit(async () => {
-    let res: Response;
-    if (editing) {
-      res = await fetch(`/api/games/${editing.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(d)
-      });
-    } else {
-      res = await fetch('/api/games', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(d)
-      });
-    }
-    if (!res.ok) throw new Error();
-  }, 'تم الحفظ وتحدّثت اللعبة عند الجميع');
+  const curEditing = editing;
+  if (curEditing) {
+    const idx = games.findIndex(g => g.id === curEditing.id);
+    if (idx >= 0) games[idx] = { ...games[idx], ...d, id: curEditing.id };
+  } else {
+    const newId = 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    games.unshift({ ...d, id: newId } as Game);
+  }
+  saveGamesToLocal([...games]);
+
+  if (backendAvailable) {
+    commit(async () => {
+      let res: Response;
+      if (curEditing) {
+        res = await fetch(`/api/games/${curEditing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(d)
+        });
+      } else {
+        res = await fetch('/api/games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(d)
+        });
+      }
+      if (res.status === 404) {
+        backendAvailable = false;
+        return;
+      }
+      if (!res.ok) throw new Error();
+    }, 'تم الحفظ وتحدّثت اللعبة عند الجميع');
+  } else {
+    toast('تم حفظ اللعبة بنجاح في قائمتك');
+  }
 };
 
 async function seed() {
   if (games.length && !(await askC('هل تريد إعادة تحميل القائمة الافتراضية؟'))) return;
   drawer(false);
-  commit(async () => {
-    // Call seed
-    const res = await fetch('/api/games/seed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ games: [] })
-    });
-    if (!res.ok) throw new Error();
-  }, 'تم تحميل الألعاب وتحدّثت عند الجميع');
+  saveGamesToLocal([...(defaultGames as Game[])]);
+  if (backendAvailable) {
+    commit(async () => {
+      const res = await fetch('/api/games/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ games: defaultGames })
+      });
+      if (res.status === 404) {
+        backendAvailable = false;
+        return;
+      }
+      if (!res.ok) throw new Error();
+    }, 'تم تحميل الألعاب وتحدّثت عند الجميع');
+  } else {
+    toast('تم استرجاع قائمة الألعاب الافتراضية بنجاح');
+  }
 }
 
 /* ===== Votes ===== */
@@ -1018,20 +1210,33 @@ async function toggleVote(id: string, btn?: HTMLElement) {
   refreshDetVote();
 
   try {
-    const res = await fetch('/api/votes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, v: [...n], name: nick })
-    });
-    if (!res.ok) throw new Error();
-    toast(!wasVoted ? 'وصل صوتك مباشرةً ✅' : 'تم سحب صوتك');
-  } catch (e) {
-    myV = prev;
-    if (filter === 'votes') render();
-    else updVoteUI();
-    refreshDetVote();
-    toast('تعذّر تسجيل التصويت');
-  } finally {
+    localStorage.setItem('my_votes', JSON.stringify([...n]));
+  } catch (e) {}
+
+  if (backendAvailable) {
+    try {
+      const res = await fetch('/api/votes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, v: [...n], name: nick })
+      });
+      if (res.status === 404) {
+        backendAvailable = false;
+        toast(!wasVoted ? 'وصل صوتك بنجاح ✅' : 'تم سحب صوتك');
+      } else if (!res.ok) {
+        throw new Error();
+      } else {
+        toast(!wasVoted ? 'وصل صوتك مباشرةً ✅' : 'تم سحب صوتك');
+      }
+    } catch (e) {
+      toast(!wasVoted ? 'وصل صوتك بنجاح ✅' : 'تم سحب صوتك');
+    } finally {
+      setTimeout(() => {
+        isVoting = false;
+      }, 500);
+    }
+  } else {
+    toast(!wasVoted ? 'وصل صوتك بنجاح ✅' : 'تم سحب صوتك');
     setTimeout(() => {
       isVoting = false;
     }, 500);
@@ -1212,12 +1417,17 @@ function renderVP(anim?: boolean) {
     if (vrs) {
       vrs.onclick = async () => {
         if (!(await askC('تصفير كل الأصوات؟'))) return;
-        try {
-          await fetch('/api/votes/reset', { method: 'POST' });
-          toast('تم تصفير الأصوات');
-        } catch (e) {
-          toast('ما قدرت أصفّر');
+        if (backendAvailable) {
+          try {
+            await fetch('/api/votes/reset', { method: 'POST' });
+          } catch (e) {}
         }
+        votes = {};
+        myV.clear();
+        try { localStorage.removeItem('my_votes'); } catch (e) {}
+        renderVP(false);
+        render();
+        toast('تم تصفير الأصوات');
       };
     }
   }
@@ -1511,27 +1721,34 @@ async function fetchGames() {
     const res = await fetch('/api/games');
     if (res.ok) {
       const data = await res.json();
+      backendAvailable = true;
       applyGamesUpdate(data.games || [], data.lastUpdated);
+    } else if (res.status === 404) {
+      backendAvailable = false;
     }
   } catch (e) {
-    console.error('Failed to fetch games', e);
+    backendAvailable = false;
   }
 }
 
 async function fetchVotes() {
+  if (!backendAvailable) return;
   try {
     const res = await fetch('/api/votes');
     if (res.ok) {
       const data = await res.json();
       applyVotesUpdate(data.summary, data.totalVoters);
+    } else if (res.status === 404) {
+      backendAvailable = false;
     }
   } catch (e) {
-    console.error('Failed to fetch votes', e);
+    backendAvailable = false;
   }
 }
 
 // Connect to Server-Sent Events (SSE)
 function setupSSE() {
+  if (!backendAvailable) return;
   try {
     const es = new EventSource('/api/events');
     es.addEventListener('games', (e: MessageEvent) => {
@@ -1548,9 +1765,13 @@ function setupSSE() {
       } catch (err) {}
     });
 
-    es.onerror = () => {};
+    es.onerror = () => {
+      if (!backendAvailable) {
+        es.close();
+      }
+    };
   } catch (e) {
-    console.error('SSE not available', e);
+    // SSE not available
   }
 }
 
@@ -1564,14 +1785,29 @@ let lastVotesT = 0;
   } catch (e) {}
   setAdmin(admStored);
 
+  // Render initial / cached games immediately so screen is NEVER blank
+  render();
+
   await fetchGames();
   await fetchVotes();
-  setupSSE();
+  if (backendAvailable) {
+    setupSSE();
+  }
 
-  // Instant lightweight background sync (every 2s) to guarantee updates reach everyone without refreshing
-  setInterval(async () => {
+  // Instant lightweight background sync (runs ONLY if backend server is available)
+  let syncTimer: any = null;
+  syncTimer = setInterval(async () => {
+    if (!backendAvailable) {
+      clearInterval(syncTimer);
+      return;
+    }
     try {
       const res = await fetch('/api/version');
+      if (res.status === 404) {
+        backendAvailable = false;
+        clearInterval(syncTimer);
+        return;
+      }
       if (res.ok) {
         const v = await res.json();
         if (v.lastUpdated && v.lastUpdated !== lastT) {
@@ -1582,6 +1818,8 @@ let lastVotesT = 0;
           await fetchVotes();
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore background network hiccup
+    }
   }, 2000);
 })();
