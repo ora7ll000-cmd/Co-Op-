@@ -1,0 +1,8 @@
+{
+  "name": "Co-Op | ألعاب جماعية",
+  "description": "تشكيلة هادية من الألعاب الجماعية على ستيم مع تصويت مباشر ولوحة تحكم للأدمن.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
