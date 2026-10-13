@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "Vote": {
+      "title": "Vote",
+      "description": "User vote record for co-op games",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique voter ID",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Voter nickname",
+          "maxLength": 100
+        },
+        "v": {
+          "type": "array",
+          "description": "List of game IDs voted for (max 3)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp ISO string of the vote"
+        }
+      },
+      "required": ["uid", "v"]
+    }
+  },
+  "firestore": {
+    "/votes/{uid}": {
+      "schema": {
+        "$ref": "#/entities/Vote"
+      },
+      "description": "Stores user votes keyed by user uid for instant real-time synchronization across all players"
+    }
+  }
+}

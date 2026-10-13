@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidVote(data) {
+      return data.keys().hasAll(['uid', 'v']) &&
+             data.keys().hasOnly(['uid', 'name', 'v', 'updatedAt']) &&
+             data.uid is string && data.uid.size() <= 64 &&
+             data.v is list && data.v.size() <= 3 &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    // Public community co-op votes collection
+    match /votes/{voteUid} {
+      allow read: if true;
+      allow create, update: if isValidId(voteUid) && isValidVote(request.resource.data) && request.resource.data.uid == voteUid;
+      allow delete: if isValidId(voteUid);
+    }
+  }
+}

@@ -1,5 +1,6 @@
 // Co-Op Web Application - Main Logic
 import { defaultGames, DEFAULT_ADMIN_CONFIG } from './initialData';
+import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes } from './firebase';
 
 type Game = {
   id: string;
@@ -1261,6 +1262,9 @@ async function toggleVote(id: string, btn?: HTMLElement) {
     localStorage.setItem('my_votes', JSON.stringify([...n]));
   } catch (e) {}
 
+  // Instant real-time cloud synchronization to Firebase Firestore
+  syncUserVoteToFirebase(uid, [...n], nick);
+
   if (backendAvailable) {
     try {
       const res = await fetch('/api/votes', {
@@ -1478,6 +1482,7 @@ function renderVP(anim?: boolean) {
             await fetch('/api/votes/reset', { method: 'POST' });
           } catch (e) {}
         }
+        await resetAllFirebaseVotes();
         votes = {};
         myV.clear();
         try { 
@@ -1862,6 +1867,11 @@ let lastVotesT = 0;
   if (backendAvailable) {
     setupSSE();
   }
+
+  // Real-time synchronization across all users via Firebase Firestore
+  subscribeToAllVotes((firebaseSummary, totalVoters) => {
+    applyVotesUpdate(firebaseSummary, totalVoters);
+  });
 
   // Instant lightweight background sync (runs ONLY if backend server is available)
   let syncTimer: any = null;
