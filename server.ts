@@ -254,7 +254,7 @@ app.post('/api/admin/set-password', (req, res) => {
 });
 
 // Setup Vite or static serving
-const port = Number(process.env.PORT) || 3000;
+const port = 3000;
 
 async function start() {
   const isProd = process.env.NODE_ENV === 'production';
