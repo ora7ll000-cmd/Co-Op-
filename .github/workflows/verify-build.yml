@@ -1,0 +1,20 @@
+name: Verify Co-Op catalog
+on:
+  push:
+    branches: [feature/secure-admin-steam-catalog-2026]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - run: node --check scripts/update-steam-prices.mjs
