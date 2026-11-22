@@ -5,7 +5,7 @@ export const extraGames = [
   { id:"steam-3527290", name:"PEAK", price:0, old:0, order:11, players:"1-4",
     goal:"تسلّقوا القمة مع أصدقائكم وتعاونوا لتجاوز العقبات.",
     desc:"مغامرة تسلّق جماعية، كل قفزة وكل يد مساعدة تصنع موقفًا مضحكًا.",
-    link:"https://store.steampowered.com/app/3527290/PEAK/", img:"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3527290/header.jpg", ar:2.14, storeAppId:3527290, priceStatus:"steam" },
+    link:"https://store.steampowered.com/app/3527290/PEAK/", img:"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3527290/31bac6b2eccf09b368f5e95ce510bae2baf3cfcd/header.jpg", ar:2.14, storeAppId:3527290, priceStatus:"steam" },
   { id:"steam-2644470", name:"PICO PARK 2", price:0, old:0, order:12, players:"2-8",
     goal:"حلوا الألغاز معًا للوصول إلى مخرج المرحلة.",
     desc:"ألغاز ومنصات بسيطة ظاهريًا، لكنها تحتاج تعاون الجميع من البداية للنهاية.",
