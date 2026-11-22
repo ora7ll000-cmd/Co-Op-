@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-coop-b9df6e48-7f1c-4ae4-9021-daeae96542b0",
+      "rules": "firestore.rules"
+    }
+  ]
+}

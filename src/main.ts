@@ -1,6 +1,12 @@
 // Co-Op Web Application - Main Logic
-import { defaultGames, DEFAULT_ADMIN_CONFIG } from './initialData';
-import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes } from './firebase';
+import { defaultGames } from './initialData';
+import { extraGames } from './extraGames';
+import steamMedia from './steamMedia.json';
+import steamPrices from './steamPrices.json';
+import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes,
+  loginApprovedAdmin, observeAdminSession, logoutAdmin,
+  subscribeToCatalogOverrides, publishCatalogGame, removeCatalogGame
+} from './firebase';
 
 type Game = {
   id: string;
@@ -19,7 +25,20 @@ type Game = {
   screenshots?: string[];
   trailer?: string;
   trailerPoster?: string;
+  storeAppId?: number;
+  priceStatus?: 'steam' | 'free';
+  priceCheckedAt?: string;
 };
+
+type SteamMedia = {
+  header?: string;
+  trailer?: { url: string; poster: string; title: string; format?: 'hls' | 'mp4' } | null;
+  screenshots?: { full: string; thumb: string }[];
+};
+const mediaFeed = steamMedia as Record<string, SteamMedia>;
+const verifiedPriceFeed = steamPrices as Record<string, {
+  price: number; old: number; currency: string; checkedAt: string; free?: boolean
+}>;
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -60,78 +79,110 @@ const INFO: Record<string, [string, string, string]> = {
 const goalOf = (g: Game) => g.goal || (INFO[g.name] ? INFO[g.name][2] : '');
 const playersOf = (g: Game) => g.players || (INFO[g.name] ? INFO[g.name][0] : '');
 
-let backendAvailable = true;
-
+// Static Cloudflare Workers do not serve the former Express API.
+let backendAvailable = false;
+const builtInGames: Game[] = [...defaultGames, ...extraGames] as Game[];
+const knownSteamIds: Record<string, number> = {
+  'Lethal Company': 1966720, 'MIMESIS': 2827200, 'RV There Yet?': 3949040,
+  'BOMBANANA!': 4656000, 'Funnel Runners': 3712080, 'Machine Party': 4108000,
+  'Sons Of The Forest': 1326470, 'Mimic Party': 5053820,
+  'Moo Who?': 4948000, 'Dumb Ways to Build': 4412320
+};
+function safeSteamAsset(value?: string): string {
+  if (!value) return '';
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' &&
+      (u.hostname === 'steamstatic.com' || u.hostname.endsWith('.steamstatic.com')) ? u.toString() : '';
+  } catch { return ''; }
+}
+function enrichSteamGame(g: Game): Game {
+  const id = g.storeAppId || knownSteamIds[g.name];
+  if (!id) return g;
+  const m = mediaFeed[String(id)];
+  const p = verifiedPriceFeed[String(id)];
+  const shots = (m?.screenshots || []).map(x => safeSteamAsset(x.full)).filter(Boolean);
+  const useOfficialCover = !g.img || g.id.startsWith('steam-') ||
+    (g.img.includes('steamstatic.com') && g.img.includes('/header.jpg'));
+  const officialCover = safeSteamAsset(m?.header);
+  const updated: Game = {
+    ...g, storeAppId: id,
+    link: g.link || `https://store.steampowered.com/app/${id}/`,
+    img: useOfficialCover && officialCover ? officialCover : g.img,
+    screenshots: g.screenshots?.length ? g.screenshots : shots,
+    trailer: g.trailer || safeSteamAsset(m?.trailer?.url),
+    trailerPoster: g.trailerPoster || safeSteamAsset(m?.trailer?.poster),
+    priceStatus: g.priceStatus || 'steam'
+  };
+  if (p?.currency === 'SAR' && Number.isFinite(p.price) && p.price >= 0) {
+    return {
+      ...updated, price: p.price, old: Number.isFinite(p.old) ? p.old : p.price,
+      priceCheckedAt: p.checkedAt, priceStatus: p.free ? 'free' : 'steam'
+    };
+  }
+  return updated;
+}
+function combineCatalog(cached: Game[]): Game[] {
+  const ids = new Set(cached.map(g => g.id));
+  const names = new Set(cached.map(g => g.name.toLowerCase().trim()));
+  return [...cached, ...builtInGames.filter(g =>
+    !ids.has(g.id) && !names.has(g.name.toLowerCase().trim())
+  )].map(enrichSteamGame);
+}
 function loadInitialGames(): Game[] {
   try {
     const saved = localStorage.getItem('coop_games');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return combineCatalog(parsed);
     }
   } catch (e) {}
-  return (defaultGames as Game[]) || [];
+  return builtInGames.map(enrichSteamGame);
 }
 
 let games: Game[] = loadInitialGames();
 
 let adminMode = false;
+let adminApproved = false;
 let curId: string | null = null;
 let imgAr = 0.8;
 let pref = 0;
 let relIds: string[] = [];
 let lastT = 0;
 
+let syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
 function saveGamesToLocal(newGames: Game[]) {
-  games = newGames;
+  const changed = newGames.filter(g => syncedCatalog.get(g.id) !== JSON.stringify(g));
+  const removed = [...syncedCatalog.keys()].filter(id => !newGames.some(g => g.id === id));
+  games = newGames.map(enrichSteamGame);
   try {
     localStorage.setItem('coop_games', JSON.stringify(games));
   } catch (e) {}
   render();
   syncDet();
   updStamp();
-}
-
-async function clientCheckPassword(pass: string): Promise<boolean> {
-  try {
-    let salt = DEFAULT_ADMIN_CONFIG.salt || 'b147683827ba8dbf';
-    let targetHash = DEFAULT_ADMIN_CONFIG.hash || 'feb0e27703ae07a95aeccea6323d96a8a4de8cda8d31ea2f1342cffc8b304d18';
-    const customCfg = localStorage.getItem('coop_admin_cfg');
-    if (customCfg) {
-      try {
-        const parsed = JSON.parse(customCfg);
-        if (parsed.salt && parsed.hash && parsed.baseHash === DEFAULT_ADMIN_CONFIG.hash) {
-          salt = parsed.salt;
-          targetHash = parsed.hash;
-        }
-      } catch (e) {}
-    }
-    const buf = new TextEncoder().encode(salt + pass);
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-    const clientHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    return clientHash === targetHash;
-  } catch (e) {
-    return false;
+  if (adminMode && adminApproved) {
+    void Promise.all([
+      ...changed.map(g => publishCatalogGame(g)),
+      ...removed.map(id => removeCatalogGame(id))
+    ]).then(() => {
+      syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
+      if (changed.length || removed.length) toast('تم حفظ التغييرات لجميع الزوار ✅');
+    }).catch(err => {
+      console.error('Firestore catalog update failed:', err);
+      toast('تعذر حفظ التعديل لجميع الزوار');
+    });
   }
 }
-
-async function clientSetPassword(password: string): Promise<boolean> {
-  try {
-    const salt = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-    const buf = new TextEncoder().encode(salt + password);
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-    const hash = Array.from(new Uint8Array(hashBuf))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem('coop_admin_cfg', JSON.stringify({
-      salt,
-      hash,
-      baseHash: DEFAULT_ADMIN_CONFIG.hash
-    }));
-    return true;
-  } catch (e) {
-    return false;
-  }
+function applySharedCatalog(overrides: { id: string; deleted?: boolean; game?: Game }[]) {
+  const map = new Map(combineCatalog(loadInitialGames()).map(g => [g.id, g]));
+  overrides.forEach(change => {
+    if (change.deleted) map.delete(change.id);
+    else if (change.game && change.game.id === change.id) map.set(change.id, enrichSteamGame(change.game));
+  });
+  games = [...map.values()];
+  syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
+  render(); syncDet(); updStamp();
 }
 
 let votes: Record<string, { n: number; uids: string[]; names: string[] }> = {};
@@ -316,7 +367,7 @@ function buildRel() {
   el.innerHTML = relIds
     .map(id => games.find(x => x.id === id))
     .filter(Boolean)
-    .map(r => r ? `<div class="rc" data-o="${r.id}"><div class="cv">${cover(r)}<button class="zoom" data-z="${r.id}" aria-label="تكبير الصورة">${ZI}</button>${adminMode ? `<button class="redit" data-e="${r.id}">تعديل</button>` : ''}</div><b>${esc(r.name)}</b><span>${(+r.price).toFixed(2)} SR</span></div>` : '')
+    .map(r => r ? `<div class="rc" data-o="${r.id}"><div class="cv">${cover(r)}<button class="zoom" data-z="${r.id}" aria-label="تكبير الصورة">${ZI}</button>${adminMode ? `<button class="redit" data-e="${r.id}">تعديل</button>` : ''}</div><b>${esc(r.name)}</b><span>${priceLabel(r)}</span></div>` : '')
     .join('');
 
   const cv = el.querySelector('.cv') as HTMLElement | null;
@@ -453,7 +504,10 @@ const esc = (s: any) =>
 
 const steam = (g: Game) => g.link || 'https://store.steampowered.com/search/?term=' + encodeURIComponent(g.name);
 const hash = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-const disc = (g: Game) => (g.old > g.price ? Math.round((1 - g.price / g.old) * 100) : 0);
+const priceUnknown = (g: Game) => g.priceStatus === 'steam' && !g.priceCheckedAt;
+const disc = (g: Game) => !priceUnknown(g) && g.old > g.price ? Math.round((1 - g.price / g.old) * 100) : 0;
+const priceLabel = (g: Game) => g.priceStatus === 'free' ? 'مجانية' :
+  priceUnknown(g) ? 'شاهد السعر على Steam' : `${(+g.price).toFixed(2)} SR`;
 
 let toastTimer: any = null;
 function toast(t: string) {
@@ -516,7 +570,7 @@ function render() {
    <button class="heart ${favs.has(g.name) ? 'on' : ''}" data-h="${esc(g.name)}" aria-label="مفضلة">${heart()}</button>
    <button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button><span class="qv">نظرة سريعة</span>
    ${adminMode ? `<div class="adm"><button data-e="${g.id}">✏️ تعديل</button><button class="d" data-d="${g.id}">🗑️ حذف</button></div>` : ''}</div>
-   <div class="meta"><h3>${esc(g.name)}</h3><small>#${g.order || i + 1}${playersOf(g) ? ` · ${esc(playersOf(g))} لاعبين` : ''}</small><div class="pr">${(+g.price).toFixed(2)} SR${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}</div>${voteBtn(g)}</div></div>`;
+   <div class="meta"><h3>${esc(g.name)}</h3><small>#${g.order || i + 1}${playersOf(g) ? ` · ${esc(playersOf(g))} لاعبين` : ''}</small><div class="pr">${priceLabel(g)}${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}</div>${voteBtn(g)}</div></div>`;
 
   if (!a.length) {
     $('grid').innerHTML = `<div class="empty">😴 ما فيه ألعاب مطابقة</div>`;
@@ -620,7 +674,7 @@ window.addEventListener('scroll', () => {
   }
 }, { passive: true });
 
-const prHtml = (g: Game) => `${(+g.price).toFixed(2)} SR${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}`;
+const prHtml = (g: Game) => `${priceLabel(g)}${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}`;
 
 const luxCornersHTML = () =>
   `<div class="lux-corners" aria-hidden="true"><span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span></div>`;
@@ -640,6 +694,27 @@ function getGalleryImages(g: Game): string[] {
     g.screenshots.forEach(push);
   }
   return out;
+}
+
+let activeSteamHls: any = null;
+let steamHlsLoad: Promise<any> | null = null;
+function disposeSteamTrailer() {
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
+  document.querySelectorAll<HTMLVideoElement>('.trailer-player').forEach(video => video.pause());
+}
+function loadSteamHls(): Promise<any> {
+  if ((window as any).Hls) return Promise.resolve((window as any).Hls);
+  if (steamHlsLoad) return steamHlsLoad;
+  steamHlsLoad = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+    script.async = true;
+    script.onload = () => (window as any).Hls
+      ? resolve((window as any).Hls) : reject(new Error('HLS script not initialized'));
+    script.onerror = () => reject(new Error('HLS script failed to load'));
+    document.head.appendChild(script);
+  }).catch(e => { steamHlsLoad = null; throw e; });
+  return steamHlsLoad;
 }
 
 function parseTrailerEmbed(url?: string): { type: 'youtube' | 'video'; src: string } | null {
@@ -764,6 +839,7 @@ function wireGalleryWidget(container: HTMLElement | null, g: Game, imgs: string[
 
 function openDet(g: Game, keep?: boolean) {
   if (!g) return;
+  disposeSteamTrailer();
   curId = g.id;
   const detEl = $('det');
   detEl.classList.toggle('nr', !!keep);
@@ -793,7 +869,7 @@ function openDet(g: Game, keep?: boolean) {
 
   const leadText = g.desc ? esc(g.desc) : goalOf(g) ? esc(goalOf(g)) : 'تجربة لعب جماعية مميزة مع أصدقائك عبر ستيم.';
   const discountPct = disc(g);
-  const priceHtml = `<span>${(+g.price).toFixed(2)} SR</span>${discountPct ? `<s>${(+g.old).toFixed(2)} SR</s><span class="det-disc-txt">خصم ${discountPct}%</span>` : ''}`;
+  const priceHtml = `<span>${priceLabel(g)}</span>${discountPct ? `<s>${(+g.old).toFixed(2)} SR</s><span class="det-disc-txt">خصم ${discountPct}%</span>` : ''}`;
 
   const coverOnlyCard = `<div class="gallery-showcase lux-card" data-active-idx="0">
     ${luxCornersHTML()}
@@ -871,11 +947,34 @@ function openDet(g: Game, keep?: boolean) {
     const startTrailer = () => {
       const box = $('dtrailer');
       if (!box) return;
-      const playMarkup =
-        trailerInfo.type === 'youtube'
-          ? `<iframe class="trailer-player" src="${esc(trailerInfo.src)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-          : `<video class="trailer-player" src="${esc(trailerInfo.src)}" ${posterSrc ? `poster="${posterSrc}"` : ''} controls autoplay playsinline></video>`;
-      box.innerHTML = `${luxCornersHTML()}${playMarkup}`;
+      const playbackUrl = trailerInfo.src;
+      const isHls = trailerInfo.type === 'video' && /\.m3u8(?:[?#]|$)/i.test(playbackUrl);
+      const playMarkup = trailerInfo.type === 'youtube'
+        ? `<iframe class="trailer-player" src="${esc(playbackUrl)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+        : `<video class="trailer-player" ${posterSrc ? `poster="${posterSrc}"` : ''} controls autoplay playsinline></video>`;
+      box.innerHTML = `${luxCornersHTML()}${playMarkup}<a class="trailer-fallback-link" href="${url}" target="_blank" rel="noopener" style="display:none">شاهد التريلر في Steam</a>`;
+      if (trailerInfo.type === 'youtube') return;
+      const video = box.querySelector<HTMLVideoElement>('video');
+      if (!video) return;
+      const fallback = box.querySelector<HTMLElement>('.trailer-fallback-link');
+      const error = () => { if (fallback) fallback.style.display = 'block'; };
+      video.addEventListener('error', error);
+      if (!isHls || video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playbackUrl;
+        void video.play().catch(() => {});
+        return;
+      }
+      void loadSteamHls().then(Hls => {
+        if (!Hls.isSupported() || !document.body.contains(video)) { error(); return; }
+        const player = new Hls({ enableWorker: true, maxBufferLength: 30 });
+        activeSteamHls = player;
+        player.on(Hls.Events.ERROR, (_ev: unknown, data: { fatal?: boolean }) => {
+          if (data.fatal) { error(); player.destroy(); if (activeSteamHls === player) activeSteamHls = null; }
+        });
+        player.on(Hls.Events.MANIFEST_PARSED, () => { void video.play().catch(() => {}); });
+        player.loadSource(playbackUrl);
+        player.attachMedia(video);
+      }).catch(error);
     };
     const tBtn = $('dtrailerBtn');
     if (tBtn) {
@@ -1039,6 +1138,7 @@ $('dx').onclick = (e: MouseEvent) => {
 };
 
 const closeDet = () => {
+  disposeSteamTrailer();
   $('det').classList.remove('on');
   if ($('dmedia')) $('dmedia').innerHTML = '';
   document.body.style.overflow = '';
@@ -1109,7 +1209,7 @@ function buildMenu() {
 
   if (adminMode) {
     h += `<div class="msep">أدوات الأدمن</div>` +
-      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['pw', 'تغيير كلمة السر'], ['out', 'خروج من وضع الأدمن']]
+      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['out', 'خروج من وضع الأدمن']]
         .map((x, i) => `<button class="ml sm2" style="--i:${7 + i}" data-act="${x[0]}">${x[1]}</button>`)
         .join('');
   } else {
@@ -1155,95 +1255,26 @@ function importGamesJson() {
 async function fillAdminBox() {
   const bx = $('admb');
   if (!bx) return;
-  bx.innerHTML = `${luxCornersHTML()}<div class="ar"><input id="mpw" type="password" autocomplete="off" placeholder="اكتب رمز الأدمن"><button id="mkey" type="button" aria-label="دخول الأدمن">${KEY}<span>دخول الأدمن</span></button></div>`;
+  bx.innerHTML = `${luxCornersHTML()}<button id="mkey" class="admin-google-lux" type="button" aria-label="تسجيل الدخول بحساب Google">
+    ${KEY}<span>تسجيل الدخول بحساب Google</span>
+  </button>`;
   $('mkey').onclick = adminLogin;
-  const mpw = $('mpw') as HTMLInputElement | null;
-  if (mpw) {
-    mpw.onkeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') adminLogin();
-    };
-  }
 }
-
-function admShake() {
-  const b = $('admb');
-  if (!b) return;
-  b.classList.remove('shake');
-  void b.offsetWidth;
-  b.classList.add('shake');
-}
-
-function unlockAdmin() {
-  const k = $('mkey');
-  if (k) k.classList.add('ok');
-  setTimeout(() => {
+async function adminLogin() {
+  try {
+    const approved = await loginApprovedAdmin();
+    if (!approved) {
+      await logoutAdmin();
+      toast('حسابك غير مسجل كمشرف في Firebase');
+      return;
+    }
+    adminApproved = true;
     setAdmin(true);
     buildMenu();
-    toast('أهلاً بك 🔐');
-  }, 450);
-}
-
-let fails = 0;
-let lockUntil = 0;
-
-async function adminLogin() {
-  const mpw = $('mpw') as HTMLInputElement | null;
-  const p = mpw ? mpw.value : '';
-  if (!p) {
-    admShake();
-    return toast('اكتب رمز الأدمن');
-  }
-  if (Date.now() < lockUntil) {
-    admShake();
-    return toast('انتظر شوي ثم جرّب مرة ثانية');
-  }
-
-  let loggedIn = false;
-  let errMsg = 'الرمز غلط';
-
-  if (backendAvailable) {
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: p })
-      });
-      if (res.status === 404) {
-        backendAvailable = false;
-      } else {
-        const data = await res.json();
-        if (res.ok && data.success) {
-          loggedIn = true;
-        } else {
-          errMsg = data.error || 'الرمز غلط';
-        }
-      }
-    } catch (e) {
-      backendAvailable = false;
-    }
-  }
-
-  // If backend is not available (e.g. static host on Vercel)
-  if (!backendAvailable && !loggedIn) {
-    const ok = await clientCheckPassword(p);
-    if (ok) {
-      loggedIn = true;
-    } else {
-      errMsg = 'الرمز غلط';
-    }
-  }
-
-  if (loggedIn) {
-    fails = 0;
-    unlockAdmin();
-  } else {
-    if (++fails >= 3) {
-      lockUntil = Date.now() + 30000;
-      fails = 0;
-    }
-    if (mpw) mpw.value = '';
-    admShake();
-    toast(errMsg);
+    toast('تم تسجيل دخول المشرف 🔐');
+  } catch (error) {
+    console.error('Admin login failed', error);
+    toast('تعذر تسجيل الدخول؛ تحقق من إعدادات Google وFirebase');
   }
 }
 
@@ -1288,67 +1319,25 @@ $('menu').onclick = (e: MouseEvent) => {
   } else if (a === 'imp') {
     drawer(false);
     importGamesJson();
-  } else if (a === 'pw') {
-    drawer(false);
-    openPw('setup');
   } else if (a === 'out') {
     drawer(false);
+    void logoutAdmin();
+    adminApproved = false;
     setAdmin(false);
   }
 };
 
 function setAdmin(on: boolean) {
-  adminMode = on;
-  try {
-    sessionStorage.setItem('adm', adminMode ? '1' : '0');
-  } catch (e) {}
+  adminMode = !!on && adminApproved;
   $('abar').classList.toggle('on', adminMode);
   render();
   syncDet();
 }
-
 $('aex').onclick = () => {
+  void logoutAdmin();
+  adminApproved = false;
   setAdmin(false);
-  toast('أنت الحين تشوف الموقع مثل أخوياك 👁️');
-};
-
-let pmode = 'setup';
-function openPw(m: string) {
-  pmode = m;
-  $('pt').textContent = 'تغيير رمز الأدمن 🔑';
-  $('pp').textContent = 'اختر رمزاً جديداً لصفحة الأدمن:';
-  $('pw2').style.display = 'block';
-  ($('pw') as HTMLInputElement).value = '';
-  ($('pw2') as HTMLInputElement).value = '';
-  ($('pdlg') as HTMLDialogElement).showModal();
-  $('pw').focus();
-}
-
-$('pcx').onclick = () => ($('pdlg') as HTMLDialogElement).close();
-
-$('pf').onsubmit = async (e: Event) => {
-  e.preventDefault();
-  const p = ($('pw') as HTMLInputElement).value;
-  const p2 = ($('pw2') as HTMLInputElement).value;
-  if (p.length < 4) return toast('الرمز قصير (4 أحرف على الأقل)');
-  if (p !== p2) return toast('الرمزين مو متطابقين');
-
-  await clientSetPassword(p);
-  if (backendAvailable) {
-    try {
-      const res = await fetch('/api/admin/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: p })
-      });
-      if (res.status === 404) backendAvailable = false;
-    } catch (err) {
-      backendAvailable = false;
-    }
-  }
-
-  ($('pdlg') as HTMLDialogElement).close();
-  toast('تم حفظ الرمز الجديد 🔑');
+  toast('تم تسجيل خروج المشرف');
 };
 
 document.addEventListener('keydown', e => {
@@ -1531,7 +1520,7 @@ $('f').onsubmit = async (e: Event) => {
 async function seed() {
   if (games.length && !(await askC('هل تريد إعادة تحميل القائمة الافتراضية؟'))) return;
   drawer(false);
-  saveGamesToLocal([...(defaultGames as Game[])]);
+  saveGamesToLocal(builtInGames.map(enrichSteamGame));
   if (backendAvailable) {
     commit(async () => {
       const res = await fetch('/api/games/seed', {
@@ -1920,7 +1909,7 @@ function openLb(id: string, src?: HTMLElement, galleryIdx?: number) {
       .map(g => ({
         id: g.id,
         name: g.name,
-        sub: `${(+g.price).toFixed(2)} SR${disc(g) ? ` · -${disc(g)}%` : ''}`,
+        sub: `${priceLabel(g)}${disc(g) ? ` · -${disc(g)}%` : ''}`,
         img: g.img,
         ar: arOf(g)
       }));
@@ -2236,11 +2225,13 @@ let lastVotesT = 0;
 
 // Initialize
 (async () => {
-  let admStored = false;
-  try {
-    admStored = sessionStorage.getItem('adm') === '1';
-  } catch (e) {}
-  setAdmin(admStored);
+  setAdmin(false);
+  observeAdminSession(approved => {
+    adminApproved = approved;
+    setAdmin(approved);
+    buildMenu();
+  });
+  subscribeToCatalogOverrides<Game>(applySharedCatalog);
 
   // Render initial / cached games immediately so screen is NEVER blank
   if (myV.size > 0 && Object.keys(votes).length === 0) {

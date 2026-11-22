@@ -18,11 +18,6 @@ export type InitialGame = {
   trailerPoster?: string;
 };
 
-export const DEFAULT_ADMIN_CONFIG = {
-  "salt": "b147683827ba8dbf",
-  "hash": "feb0e27703ae07a95aeccea6323d96a8a4de8cda8d31ea2f1342cffc8b304d18"
-};
-
 export const defaultGames: InitialGame[] = [
   {
     "id": "850xxaqs1c71wnmfiz8d",
