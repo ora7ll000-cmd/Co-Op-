@@ -81,7 +81,11 @@ const steamPriceFeed = steamPrices as Record<string, { price: number; old: numbe
 function withSaudiStorePrice(g: Game): Game {
   const steamId = g.storeAppId || existingSteamGames[g.name];
   if (!steamId) return g;
+  const correctedPeakImage = extraGames.find(item => item.storeAppId === 3527290)?.img;
+  const needsPeakImageFix = steamId === 3527290 &&
+    (!g.img || g.img.includes('/3527290/header.jpg'));
   const linked: Game = { ...g, storeAppId: steamId, priceStatus: g.priceStatus || 'steam',
+    img: needsPeakImageFix && correctedPeakImage ? correctedPeakImage : g.img,
     link: g.link || `https://store.steampowered.com/app/${steamId}/` };
   const verified = steamPriceFeed[String(steamId)];
   if (verified?.currency === 'SAR' && Number.isFinite(verified.price) && verified.price >= 0) {
