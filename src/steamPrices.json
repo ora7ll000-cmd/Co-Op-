@@ -1,183 +1,253 @@
 {
+  "11020": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.977Z",
+    "currency": "SAR",
+    "free": true
+  },
   "386940": {
     "price": 16.87,
     "old": 37.49,
-    "checkedAt": "2026-11-22T10:17:45.308Z",
+    "checkedAt": "2026-11-22T12:16:28.128Z",
     "currency": "SAR"
   },
   "477160": {
     "price": 47,
     "old": 47,
-    "checkedAt": "2026-11-22T10:17:44.911Z",
+    "checkedAt": "2026-11-22T12:16:27.701Z",
     "currency": "SAR"
+  },
+  "565640": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.006Z",
+    "currency": "SAR",
+    "free": true
   },
   "648800": {
     "price": 46.49,
     "old": 46.49,
-    "checkedAt": "2026-11-22T10:17:46.011Z",
+    "checkedAt": "2026-11-22T12:16:29.072Z",
     "currency": "SAR"
   },
   "690640": {
     "price": 79,
     "old": 79,
-    "checkedAt": "2026-11-22T10:17:46.138Z",
+    "checkedAt": "2026-11-22T12:16:29.220Z",
     "currency": "SAR"
+  },
+  "705210": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:31.100Z",
+    "currency": "SAR",
+    "free": true
   },
   "728880": {
     "price": 39.95,
     "old": 39.95,
-    "checkedAt": "2026-11-22T10:17:44.546Z",
+    "checkedAt": "2026-11-22T12:16:27.267Z",
     "currency": "SAR"
+  },
+  "848230": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.214Z",
+    "currency": "SAR",
+    "free": true
+  },
+  "858960": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.505Z",
+    "currency": "SAR",
+    "free": true
   },
   "905340": {
     "price": 22.49,
     "old": 22.49,
-    "checkedAt": "2026-11-22T10:17:46.249Z",
+    "checkedAt": "2026-11-22T12:16:29.333Z",
     "currency": "SAR"
   },
   "1004490": {
     "price": 40.95,
     "old": 40.95,
-    "checkedAt": "2026-11-22T10:17:46.401Z",
+    "checkedAt": "2026-11-22T12:16:29.472Z",
     "currency": "SAR"
   },
   "1011670": {
     "price": 32.95,
     "old": 32.95,
-    "checkedAt": "2026-11-22T10:17:46.531Z",
+    "checkedAt": "2026-11-22T12:16:29.586Z",
     "currency": "SAR"
   },
   "1016920": {
     "price": 55,
     "old": 55,
-    "checkedAt": "2026-11-22T10:17:45.189Z",
+    "checkedAt": "2026-11-22T12:16:27.985Z",
     "currency": "SAR"
   },
   "1211020": {
     "price": 51.49,
     "old": 51.49,
-    "checkedAt": "2026-11-22T10:17:45.866Z",
+    "checkedAt": "2026-11-22T12:16:28.898Z",
     "currency": "SAR"
   },
   "1260320": {
     "price": 51.5,
     "old": 51.5,
-    "checkedAt": "2026-11-22T10:17:45.604Z",
+    "checkedAt": "2026-11-22T12:16:28.465Z",
     "currency": "SAR"
+  },
+  "1306180": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.801Z",
+    "currency": "SAR",
+    "free": true
   },
   "1326470": {
     "price": 61.49,
     "old": 61.49,
-    "checkedAt": "2026-11-22T10:17:43.604Z",
+    "checkedAt": "2026-11-22T12:16:26.048Z",
     "currency": "SAR"
+  },
+  "1404870": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:29.709Z",
+    "currency": "SAR",
+    "free": true
+  },
+  "1598560": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.397Z",
+    "currency": "SAR",
+    "free": true
   },
   "1599600": {
     "price": 10.23,
     "old": 40.95,
-    "checkedAt": "2026-11-22T10:17:45.053Z",
+    "checkedAt": "2026-11-22T12:16:27.827Z",
     "currency": "SAR"
   },
   "1621690": {
     "price": 39.95,
     "old": 39.95,
-    "checkedAt": "2026-11-22T10:17:45.747Z",
+    "checkedAt": "2026-11-22T12:16:28.738Z",
     "currency": "SAR"
   },
   "1641700": {
     "price": 109.99,
     "old": 109.99,
-    "checkedAt": "2026-11-22T10:17:45.450Z",
+    "checkedAt": "2026-11-22T12:16:28.257Z",
     "currency": "SAR"
   },
   "1966720": {
     "price": 22.49,
     "old": 22.49,
-    "checkedAt": "2026-11-22T10:17:42.918Z",
+    "checkedAt": "2026-11-22T12:16:24.962Z",
     "currency": "SAR"
+  },
+  "1969130": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:29.850Z",
+    "currency": "SAR",
+    "free": true
+  },
+  "2187320": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T12:16:30.622Z",
+    "currency": "SAR",
+    "free": true
   },
   "2567870": {
     "price": 11.95,
     "old": 11.95,
-    "checkedAt": "2026-11-22T10:17:44.668Z",
+    "checkedAt": "2026-11-22T12:16:27.407Z",
     "currency": "SAR"
   },
   "2644470": {
     "price": 15.05,
     "old": 21.5,
-    "checkedAt": "2026-11-22T10:17:44.197Z",
+    "checkedAt": "2026-11-22T12:16:26.888Z",
     "currency": "SAR"
   },
   "2709570": {
     "price": 0,
     "old": 0,
-    "checkedAt": "2026-11-22T10:17:44.303Z",
+    "checkedAt": "2026-11-22T12:16:27.008Z",
     "currency": "SAR",
     "free": true
   },
   "2827200": {
     "price": 22.49,
     "old": 22.49,
-    "checkedAt": "2026-11-22T10:17:43.027Z",
+    "checkedAt": "2026-11-22T12:16:25.089Z",
     "currency": "SAR"
   },
   "2881650": {
     "price": 11.77,
     "old": 18.99,
-    "checkedAt": "2026-11-22T10:17:44.798Z",
+    "checkedAt": "2026-11-22T12:16:27.569Z",
     "currency": "SAR"
   },
   "3241660": {
     "price": 23.49,
     "old": 23.49,
-    "checkedAt": "2026-11-22T10:17:44.415Z",
+    "checkedAt": "2026-11-22T12:16:27.130Z",
     "currency": "SAR"
   },
   "3527290": {
     "price": 19.99,
     "old": 19.99,
-    "checkedAt": "2026-11-22T10:17:44.062Z",
+    "checkedAt": "2026-11-22T12:16:26.695Z",
     "currency": "SAR"
   },
   "3712080": {
     "price": 29.49,
     "old": 29.49,
-    "checkedAt": "2026-11-22T10:17:43.386Z",
+    "checkedAt": "2026-11-22T12:16:25.537Z",
     "currency": "SAR"
   },
   "3949040": {
     "price": 18.5,
     "old": 18.5,
-    "checkedAt": "2026-11-22T10:17:43.132Z",
+    "checkedAt": "2026-11-22T12:16:25.231Z",
     "currency": "SAR"
   },
   "4108000": {
     "price": 28.99,
     "old": 28.99,
-    "checkedAt": "2026-11-22T10:17:43.491Z",
+    "checkedAt": "2026-11-22T12:16:25.697Z",
     "currency": "SAR"
   },
   "4412320": {
     "price": 19.35,
     "old": 19.35,
-    "checkedAt": "2026-11-22T10:17:43.948Z",
+    "checkedAt": "2026-11-22T12:16:26.552Z",
     "currency": "SAR"
   },
   "4656000": {
     "price": 20.99,
     "old": 20.99,
-    "checkedAt": "2026-11-22T10:17:43.272Z",
+    "checkedAt": "2026-11-22T12:16:25.352Z",
     "currency": "SAR"
   },
   "4948000": {
     "price": 18.75,
     "old": 18.75,
-    "checkedAt": "2026-11-22T10:17:43.813Z",
+    "checkedAt": "2026-11-22T12:16:26.396Z",
     "currency": "SAR"
   },
   "5053820": {
     "price": 18.75,
     "old": 18.75,
-    "checkedAt": "2026-11-22T10:17:43.702Z",
+    "checkedAt": "2026-11-22T12:16:26.208Z",
     "currency": "SAR"
   }
 }

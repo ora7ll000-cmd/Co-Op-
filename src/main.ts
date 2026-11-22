@@ -549,6 +549,7 @@ function render() {
   const q = ($('q') as HTMLInputElement).value.trim().toLowerCase();
   if (q) a = a.filter(g => g.name.toLowerCase().includes(q));
   if (filter === 'sale') a = a.filter(g => disc(g));
+  if (filter === 'free') a = a.filter(g => g.priceStatus === 'free' || (g.priceCheckedAt && g.price === 0));
   if (filter === 'fav') a = a.filter(g => favs.has(g.name));
   if (filter === 'votes') a = a.filter(g => vN(g) > 0);
 
@@ -1201,7 +1202,7 @@ function toggleTheme(ev: any, want?: string) {
 }
 
 function buildMenu() {
-  const L = [['all', 'الكل'], ['sale', 'العروض'], ['fav', 'المفضلة'], ['lo', 'الأرخص'], ['hi', 'الأغلى']];
+  const L = [['all', 'الكل'], ['free', 'الألعاب المجانية'], ['sale', 'العروض'], ['fav', 'المفضلة'], ['lo', 'الأرخص'], ['hi', 'الأغلى']];
   const dk = themeNow() === 'dark';
   let h = `<div class="trow"><span>المظهر</span><div class="tseg${dk ? ' dark' : ''}"><i class="pill"></i><button data-act="theme" data-t="light" class="${dk ? '' : 'on'}" aria-label="المظهر الفاتح"><svg class="sn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>فاتح</button><button data-act="theme" data-t="dark" class="${dk ? 'on' : ''}" aria-label="المظهر الداكن"><svg class="mn" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>داكن</button></div></div>` +
     L.map((x, i) => `<button class="ml" style="--i:${i}" data-f="${x[0]}">${x[1]}</button>`).join('') +
