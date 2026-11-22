@@ -29,7 +29,7 @@ type Game = {
 
 type SteamMedia = {
   header?: string;
-  trailer?: { url: string; poster: string; title: string } | null;
+  trailer?: { url: string; poster: string; title: string; format?: 'mp4' | 'hls' } | null;
   screenshots?: { full: string; thumb: string }[];
   updatedAt?: string;
 };
@@ -671,6 +671,23 @@ window.addEventListener('scroll', () => {
   }
 }, { passive: true });
 
+let activeSteamHls: any = null;
+let steamHlsLoad: Promise<any> | null = null;
+function loadSteamHlsPlayer(): Promise<any> {
+  const existing = (window as any).Hls;
+  if (existing) return Promise.resolve(existing);
+  if (steamHlsLoad) return steamHlsLoad;
+  steamHlsLoad = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+    script.async = true;
+    script.onload = () => (window as any).Hls ? resolve((window as any).Hls) : reject(new Error('HLS player unavailable'));
+    script.onerror = () => reject(new Error('Unable to load HLS player'));
+    document.head.appendChild(script);
+  }).catch(error => { steamHlsLoad = null; throw error; });
+  return steamHlsLoad;
+}
+
 const prHtml = (g: Game) => `${priceLabel(g)}${originalPriceLabel(g)}`;
 
 function openDet(g: Game, keep?: boolean) {
@@ -690,12 +707,13 @@ function openDet(g: Game, keep?: boolean) {
   const screenshots = (gameMedia?.screenshots || []).map(s => ({
     full: steamMediaUrl(s.full), thumb: steamMediaUrl(s.thumb)
   })).filter(s => s.full).slice(0, 8);
-  const trailerSection = safeTrailer ? `<div class="steam-gallery-section">
+  const trailerKind = gameMedia?.trailer?.format === 'hls' || safeTrailer.includes('.m3u8') ? 'hls' : 'mp4';
+  const trailerSection = safeTrailer ? `<div class="steam-gallery-section">`
     <h4>🎬 التريلر الرسمي من Steam</h4>
     <video class="steam-trailer" controls playsinline preload="none" ${safePoster ? `poster="${safePoster}"` : ''}>
-      <source src="${safeTrailer}" type="video/mp4">
       متصفحك لا يدعم تشغيل الفيديو.
     </video>
+    <a class="steam-trailer-fallback" href="${url}" target="_blank" rel="noopener" style="display:none">شاهد الفيديو على Steam</a>
   </div>` : '';
   const shotsSection = screenshots.length ? `<div class="steam-gallery-section">
     <h4>📸 لقطات من اللعبة</h4>
@@ -726,6 +744,29 @@ function openDet(g: Game, keep?: boolean) {
   </a></div>`;
 
   $('dg').querySelectorAll('.dt,.dl').forEach(c => [...c.children].forEach((x, i) => (x as HTMLElement).style.setProperty('--i', String(i))));
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
+  const trailerPlayer = $('dg').querySelector<HTMLVideoElement>('.steam-trailer');
+  if (trailerPlayer && safeTrailer) {
+    const fallback = $('dg').querySelector<HTMLAnchorElement>('.steam-trailer-fallback');
+    const showTrailerFallback = () => { if (fallback) fallback.style.display = 'block'; };
+    trailerPlayer.addEventListener('error', showTrailerFallback);
+    if (trailerKind === 'mp4' || trailerPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+      trailerPlayer.src = safeTrailer;
+    } else {
+      void loadSteamHlsPlayer().then(Hls => {
+        if (!Hls?.isSupported() || !$('dg').contains(trailerPlayer)) {
+          showTrailerFallback(); return;
+        }
+        const instance = new Hls({ enableWorker: true, maxBufferLength: 30 });
+        activeSteamHls = instance;
+        instance.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean }) => {
+          if (data.fatal) { showTrailerFallback(); instance.destroy(); if (activeSteamHls === instance) activeSteamHls = null; }
+        });
+        instance.loadSource(safeTrailer);
+        instance.attachMedia(trailerPlayer);
+      }).catch(() => showTrailerFallback());
+    }
+  }
   const steamMediaElement = $('dg').querySelector('.steam-media') as HTMLElement | null;
   if (steamMediaElement && screenshots.length) {
     steamMediaElement.querySelectorAll<HTMLButtonElement>('[data-steam-shot]').forEach(button => {
@@ -831,6 +872,9 @@ $('dx').onclick = (e: MouseEvent) => {
 };
 
 const closeDet = () => {
+  const trailer = $('dg').querySelector<HTMLVideoElement>('.steam-trailer');
+  if (trailer) trailer.pause();
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
   $('det').classList.remove('on');
   document.body.style.overflow = '';
 };
