@@ -65,14 +65,25 @@ const playersOf = (g: Game) => g.players || (INFO[g.name] ? INFO[g.name][0] : ''
 let backendAvailable = true;
 
 // Include new verified co-op titles without deleting games a visitor or admin already saved.
+// Only attach Steam URLs when an official product page has been independently verified.
+const existingSteamGames: Record<string, number> = {
+  'Lethal Company': 1966720, 'MIMESIS': 2827200, 'RV There Yet?': 3949040,
+  'BOMBANANA!': 4656000, 'Funnel Runners': 3712080,
+  'Machine Party': 4108000, 'Sons Of The Forest': 1326470,
+  'Mimic Party': 5053820, 'Moo Who?': 4948000,
+  'Dumb Ways to Build': 4412320
+};
 const steamPriceFeed = steamPrices as Record<string, { price: number; old: number; currency: string; checkedAt: string; free?: boolean }>;
 function withSaudiStorePrice(g: Game): Game {
-  if (!g.storeAppId) return g;
-  const verified = steamPriceFeed[String(g.storeAppId)];
+  const steamId = g.storeAppId || existingSteamGames[g.name];
+  if (!steamId) return g;
+  const linked: Game = { ...g, storeAppId: steamId, priceStatus: g.priceStatus || 'steam',
+    link: g.link || `https://store.steampowered.com/app/${steamId}/` };
+  const verified = steamPriceFeed[String(steamId)];
   if (verified?.currency === 'SAR' && Number.isFinite(verified.price) && verified.price >= 0) {
-    return { ...g, price: verified.price, old: verified.old || 0, priceStatus: verified.free ? 'free' : 'steam', priceCheckedAt: verified.checkedAt };
+    return { ...linked, price: verified.price, old: verified.old || 0, priceStatus: verified.free ? 'free' : 'steam', priceCheckedAt: verified.checkedAt };
   }
-  return g;
+  return linked;
 }
 const catalogGames: Game[] = [...defaultGames, ...extraGames] as Game[];
 function mergeNewGames(existing: Game[]): Game[] {
