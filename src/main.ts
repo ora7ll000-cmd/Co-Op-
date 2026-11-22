@@ -1,12 +1,6 @@
 // Co-Op Web Application - Main Logic
-import { defaultGames } from './initialData';
-import { extraGames } from './extraGames';
-import steamPrices from './steamPrices.json';
-import steamMedia from './steamMedia.json';
-import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes,
-  auth, loginApprovedAdmin, observeAdminSession, logoutAdmin,
-  subscribeToCatalogOverrides, publishCatalogGame, removeCatalogGame
-} from './firebase';
+import { defaultGames, DEFAULT_ADMIN_CONFIG } from './initialData';
+import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes } from './firebase';
 
 type Game = {
   id: string;
@@ -22,26 +16,10 @@ type Game = {
   goal: string;
   sp?: number | string;
   sc?: number;
-  storeAppId?: number;
-  priceStatus?: 'steam' | 'free';
-  priceCheckedAt?: string;
+  screenshots?: string[];
+  trailer?: string;
+  trailerPoster?: string;
 };
-
-type SteamMedia = {
-  header?: string;
-  trailer?: { url: string; poster: string; title: string; format?: 'mp4' | 'hls' } | null;
-  screenshots?: { full: string; thumb: string }[];
-  updatedAt?: string;
-};
-const steamMediaFeed = steamMedia as Record<string, SteamMedia>;
-const steamMediaUrl = (value: string | undefined): string => {
-  if (!value) return '';
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && (url.hostname === 'steamstatic.com' || url.hostname.endsWith('.steamstatic.com')) ? url.href : '';
-  } catch { return ''; }
-};
-const mediaOf = (g: Game) => g.storeAppId ? steamMediaFeed[String(g.storeAppId)] : undefined;
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -82,60 +60,22 @@ const INFO: Record<string, [string, string, string]> = {
 const goalOf = (g: Game) => g.goal || (INFO[g.name] ? INFO[g.name][2] : '');
 const playersOf = (g: Game) => g.players || (INFO[g.name] ? INFO[g.name][0] : '');
 
-// Cloudflare serves Vite static assets; the legacy Express API is NOT deployed.
-let backendAvailable = false;
+let backendAvailable = true;
 
-// Include new verified co-op titles without deleting games a visitor or admin already saved.
-// Only attach Steam URLs when an official product page has been independently verified.
-const existingSteamGames: Record<string, number> = {
-  'Lethal Company': 1966720, 'MIMESIS': 2827200, 'RV There Yet?': 3949040,
-  'BOMBANANA!': 4656000, 'Funnel Runners': 3712080,
-  'Machine Party': 4108000, 'Sons Of The Forest': 1326470,
-  'Mimic Party': 5053820, 'Moo Who?': 4948000,
-  'Dumb Ways to Build': 4412320
-};
-const steamPriceFeed = steamPrices as Record<string, { price: number; old: number; currency: string; checkedAt: string; free?: boolean }>;
-function withSaudiStorePrice(g: Game): Game {
-  const steamId = g.storeAppId || existingSteamGames[g.name];
-  if (!steamId) return g;
-  const officialMediaCover = steamMediaUrl(steamMediaFeed[String(steamId)]?.header);
-  const correctedPeakImage = extraGames.find(item => item.storeAppId === 3527290)?.img;
-  const needsPeakImageFix = steamId === 3527290 && (!g.img || g.img.includes('/3527290/header.jpg'));
-  const linked: Game = { ...g, storeAppId: steamId, priceStatus: g.priceStatus || 'steam',
-    img: officialMediaCover || (needsPeakImageFix && correctedPeakImage ? correctedPeakImage : g.img),
-    link: g.link || `https://store.steampowered.com/app/${steamId}/` };
-  const verified = steamPriceFeed[String(steamId)];
-  if (verified?.currency === 'SAR' && Number.isFinite(verified.price) && verified.price >= 0) {
-    return { ...linked, price: verified.price, old: verified.old || 0, priceStatus: verified.free ? 'free' : 'steam', priceCheckedAt: verified.checkedAt };
-  }
-  return linked;
-}
-const catalogGames: Game[] = [...defaultGames, ...extraGames] as Game[];
-function mergeNewGames(existing: Game[]): Game[] {
-  const existingIds = new Set(existing.map(g => g.id));
-  const existingNames = new Set(existing.map(g => g.name.trim().toLowerCase()));
-  return [
-    ...existing.map(withSaudiStorePrice),
-    ...catalogGames.filter(g => !existingIds.has(g.id) && !existingNames.has(g.name.trim().toLowerCase())).map(withSaudiStorePrice)
-  ];
-}
 function loadInitialGames(): Game[] {
   try {
     const saved = localStorage.getItem('coop_games');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return mergeNewGames(parsed);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {}
-  return catalogGames.map(withSaudiStorePrice);
+  return (defaultGames as Game[]) || [];
 }
 
 let games: Game[] = loadInitialGames();
 
 let adminMode = false;
-let adminApproved = false;
-let cloudCatalogInitialized = false;
-let syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
 let curId: string | null = null;
 let imgAr = 0.8;
 let pref = 0;
@@ -143,43 +83,55 @@ let relIds: string[] = [];
 let lastT = 0;
 
 function saveGamesToLocal(newGames: Game[]) {
-  const nextIds = new Set(newGames.map(g => g.id));
-  const changes = newGames.filter(g => syncedCatalog.get(g.id) !== JSON.stringify(g));
-  const removed = [...syncedCatalog.keys()].filter(id => !nextIds.has(id));
   games = newGames;
-  try { localStorage.setItem('coop_games', JSON.stringify(games)); } catch (e) {}
+  try {
+    localStorage.setItem('coop_games', JSON.stringify(games));
+  } catch (e) {}
   render();
   syncDet();
   updStamp();
+}
 
-  // Only an authenticated Firebase admin can write to the shared catalog.
-  if (adminMode && adminApproved) {
-    void Promise.all([
-      ...changes.map(g => publishCatalogGame(g)),
-      ...removed.map(id => removeCatalogGame(id))
-    ]).then(() => {
-      syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
-      if (changes.length || removed.length) toast('تم حفظ تحديث الألعاب للجميع ✅');
-    }).catch(error => {
-      console.error('Catalog update failed', error);
-      toast('تعذّر حفظ التحديث للجميع — تحقق من صلاحيات Firestore');
-    });
+async function clientCheckPassword(pass: string): Promise<boolean> {
+  try {
+    let salt = DEFAULT_ADMIN_CONFIG.salt || 'b147683827ba8dbf';
+    let targetHash = DEFAULT_ADMIN_CONFIG.hash || 'feb0e27703ae07a95aeccea6323d96a8a4de8cda8d31ea2f1342cffc8b304d18';
+    const customCfg = localStorage.getItem('coop_admin_cfg');
+    if (customCfg) {
+      try {
+        const parsed = JSON.parse(customCfg);
+        if (parsed.salt && parsed.hash && parsed.baseHash === DEFAULT_ADMIN_CONFIG.hash) {
+          salt = parsed.salt;
+          targetHash = parsed.hash;
+        }
+      } catch (e) {}
+    }
+    const buf = new TextEncoder().encode(salt + pass);
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+    const clientHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return clientHash === targetHash;
+  } catch (e) {
+    return false;
   }
 }
 
-// Remote changes override local defaults while preserving the site's game IDs and votes.
-function applySharedCatalog(overrides: { id: string; deleted?: boolean; game?: Game }[]) {
-  const byId = new Map<string, Game>(loadInitialGames().map(g => [g.id, g]));
-  for (const item of overrides) {
-    if (item.deleted) byId.delete(item.id);
-    else if (item.game?.id === item.id) byId.set(item.id, withSaudiStorePrice(item.game));
+async function clientSetPassword(password: string): Promise<boolean> {
+  try {
+    const salt = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const buf = new TextEncoder().encode(salt + password);
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+    const hash = Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('coop_admin_cfg', JSON.stringify({
+      salt,
+      hash,
+      baseHash: DEFAULT_ADMIN_CONFIG.hash
+    }));
+    return true;
+  } catch (e) {
+    return false;
   }
-  games = [...byId.values()];
-  syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
-  cloudCatalogInitialized = true;
-  render();
-  syncDet();
-  updStamp();
 }
 
 let votes: Record<string, { n: number; uids: string[]; names: string[] }> = {};
@@ -288,7 +240,7 @@ function playSound(type: 'vote' | 'unvote' | 'click') {
 const vN = (g: Game) => (votes[g.id] ? votes[g.id].n : 0);
 const FI = `<svg viewBox="0 0 24 24" class="flame-ico"><path class="flame-out" d="M12 2c1 4 5 5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z"/><path class="flame-in" d="M12 13c.6 0 1.2.5 1.2 1.2a1.2 1.2 0 01-2.4 0c0-.7.6-1.2 1.2-1.2z"/></svg>`;
 const voteBtn = (g: Game, big?: boolean) =>
-  `<button class="vote${big ? ' big' : ''}${myV.has(g.id) ? ' on' : ''}" data-v="${g.id}"${big ? ' id="dv"' : ''} aria-label="${myV.has(g.id) ? 'إلغاء التصويت' : 'تصويت للعبة'}">
+  `<button class="vote${big ? ' det-vote' : ''}${myV.has(g.id) ? ' on' : ''}" data-v="${g.id}"${big ? ' id="dv"' : ''} aria-label="${myV.has(g.id) ? 'إلغاء التصويت' : 'تصويت للعبة'}">
     <span class="v-ico">${FI}</span>
     <span class="v-txt">${myV.has(g.id) ? 'اخترتها' : 'أبي ألعبها'}</span>
     <b class="v-num">${vN(g)}</b>
@@ -364,7 +316,7 @@ function buildRel() {
   el.innerHTML = relIds
     .map(id => games.find(x => x.id === id))
     .filter(Boolean)
-    .map(r => r ? `<div class="rc" data-o="${r.id}"><div class="cv">${cover(r)}<button class="zoom" data-z="${r.id}" aria-label="تكبير الصورة">${ZI}</button>${adminMode ? `<button class="redit" data-e="${r.id}">تعديل</button>` : ''}</div><b>${esc(r.name)}</b><span>${priceLabel(r)}</span></div>` : '')
+    .map(r => r ? `<div class="rc" data-o="${r.id}"><div class="cv">${cover(r)}<button class="zoom" data-z="${r.id}" aria-label="تكبير الصورة">${ZI}</button>${adminMode ? `<button class="redit" data-e="${r.id}">تعديل</button>` : ''}</div><b>${esc(r.name)}</b><span>${(+r.price).toFixed(2)} SR</span></div>` : '')
     .join('');
 
   const cv = el.querySelector('.cv') as HTMLElement | null;
@@ -471,13 +423,13 @@ function syncDet() {
 }
 
 const GR = [
-  ['#3fae7a', '#1c6e6a'],
-  ['#79b875', '#2f8f83'],
-  ['#4fb6d8', '#2a7fa8'],
-  ['#8f7be0', '#5a4fc2'],
-  ['#f08fb0', '#c4577f'],
-  ['#f2b25c', '#d9733a'],
-  ['#5cc8a8', '#2e8f70']
+  ['#1b365d', '#0d1b2d'],
+  ['#264873', '#11243a'],
+  ['#334e7d', '#162847'],
+  ['#424d7e', '#1c2445'],
+  ['#5a4263', '#281d33'],
+  ['#6a523b', '#2b2018'],
+  ['#244b66', '#102536']
 ];
 const EM = ['🎮', '🕹️', '👾', '🎲', '🧩', '🚀', '🔥'];
 
@@ -501,10 +453,7 @@ const esc = (s: any) =>
 
 const steam = (g: Game) => g.link || 'https://store.steampowered.com/search/?term=' + encodeURIComponent(g.name);
 const hash = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-const priceUnknown = (g: Game) => g.priceStatus === 'steam' && !g.priceCheckedAt;
-const disc = (g: Game) => (!priceUnknown(g) && g.old > g.price ? Math.round((1 - g.price / g.old) * 100) : 0);
-const priceLabel = (g: Game) => g.priceStatus === 'free' ? 'مجانية' : priceUnknown(g) ? 'شاهد السعر على Steam' : `${(+g.price).toFixed(2)} SR`;
-const originalPriceLabel = (g: Game) => disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : '';
+const disc = (g: Game) => (g.old > g.price ? Math.round((1 - g.price / g.old) * 100) : 0);
 
 let toastTimer: any = null;
 function toast(t: string) {
@@ -553,9 +502,9 @@ function render() {
     filter === 'votes'
       ? vN(y) - vN(x) || (x.order || 0) - (y.order || 0)
       : filter === 'lo'
-      ? (priceUnknown(x) ? Number.POSITIVE_INFINITY : x.price) - (priceUnknown(y) ? Number.POSITIVE_INFINITY : y.price)
+      ? x.price - y.price
       : filter === 'hi'
-      ? (priceUnknown(y) ? -1 : y.price) - (priceUnknown(x) ? -1 : x.price)
+      ? y.price - x.price
       : (x.order || 0) - (y.order || 0)
   );
 
@@ -567,7 +516,7 @@ function render() {
    <button class="heart ${favs.has(g.name) ? 'on' : ''}" data-h="${esc(g.name)}" aria-label="مفضلة">${heart()}</button>
    <button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button><span class="qv">نظرة سريعة</span>
    ${adminMode ? `<div class="adm"><button data-e="${g.id}">✏️ تعديل</button><button class="d" data-d="${g.id}">🗑️ حذف</button></div>` : ''}</div>
-   <div class="meta"><h3>${esc(g.name)}</h3><small>#${g.order || i + 1}${playersOf(g) ? ` · ${esc(playersOf(g))} لاعبين` : ''}</small><div class="pr">${priceLabel(g)}${originalPriceLabel(g)}</div>${voteBtn(g)}</div></div>`;
+   <div class="meta"><h3>${esc(g.name)}</h3><small>#${g.order || i + 1}${playersOf(g) ? ` · ${esc(playersOf(g))} لاعبين` : ''}</small><div class="pr">${(+g.price).toFixed(2)} SR${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}</div>${voteBtn(g)}</div></div>`;
 
   if (!a.length) {
     $('grid').innerHTML = `<div class="empty">😴 ما فيه ألعاب مطابقة</div>`;
@@ -671,121 +620,339 @@ window.addEventListener('scroll', () => {
   }
 }, { passive: true });
 
-let activeSteamHls: any = null;
-let steamHlsLoad: Promise<any> | null = null;
-function loadSteamHlsPlayer(): Promise<any> {
-  const existing = (window as any).Hls;
-  if (existing) return Promise.resolve(existing);
-  if (steamHlsLoad) return steamHlsLoad;
-  steamHlsLoad = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
-    script.async = true;
-    script.onload = () => (window as any).Hls ? resolve((window as any).Hls) : reject(new Error('HLS player unavailable'));
-    script.onerror = () => reject(new Error('Unable to load HLS player'));
-    document.head.appendChild(script);
-  }).catch(error => { steamHlsLoad = null; throw error; });
-  return steamHlsLoad;
+const prHtml = (g: Game) => `${(+g.price).toFixed(2)} SR${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}`;
+
+const luxCornersHTML = () =>
+  `<div class="lux-corners" aria-hidden="true"><span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span></div>`;
+
+function getGalleryImages(g: Game): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (src?: string) => {
+    const s = (src || '').trim();
+    if (s && !seen.has(s)) {
+      seen.add(s);
+      out.push(s);
+    }
+  };
+  push(g.img);
+  if (Array.isArray(g.screenshots)) {
+    g.screenshots.forEach(push);
+  }
+  return out;
 }
 
-const prHtml = (g: Game) => `${priceLabel(g)}${originalPriceLabel(g)}`;
+function parseTrailerEmbed(url?: string): { type: 'youtube' | 'video'; src: string } | null {
+  const raw = (url || '').trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, '').toLowerCase();
+    let ytId = '';
+    if (host === 'youtu.be') {
+      ytId = u.pathname.replace(/^\//, '').split('/')[0];
+    } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com') {
+      if (u.pathname.startsWith('/embed/')) ytId = u.pathname.split('/')[2] || '';
+      else if (u.pathname.startsWith('/shorts/')) ytId = u.pathname.split('/')[2] || '';
+      else ytId = u.searchParams.get('v') || '';
+    }
+    if (ytId) {
+      return {
+        type: 'youtube',
+        src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytId)}?autoplay=1&rel=0`
+      };
+    }
+  } catch (e) {}
+  if (/^(https?:|data:video\/|blob:|\/)/i.test(raw)) {
+    return { type: 'video', src: raw };
+  }
+  return null;
+}
+
+function buildGalleryWidget(g: Game, imgs: string[]): string {
+  const hasImgs = imgs.length > 0;
+  const firstSrc = hasImgs ? imgs[0] : '';
+  const h = hash(g.name);
+  const c = GR[h % GR.length];
+  const navArrows = imgs.length > 1
+    ? `<button type="button" class="g-nav prev" aria-label="الصورة السابقة"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button>
+       <button type="button" class="g-nav next" aria-label="الصورة التالية"><svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button>
+       <div class="gallery-counter">1 / ${imgs.length}</div>`
+    : '';
+  const thumbs = hasImgs
+    ? `<div class="gallery-thumbs-wrap"><div class="gallery-thumbs${imgs.length === 1 ? ' single' : ''}">${imgs
+        .map(
+          (src, idx) =>
+            `<button type="button" class="g-thumb${idx === 0 ? ' active' : ''}" data-idx="${idx}" aria-label="عرض صورة ${idx + 1}" aria-pressed="${idx === 0 ? 'true' : 'false'}"><img src="${esc(src)}" alt="${esc(g.name)} - ${idx + 1}" referrerpolicy="no-referrer" loading="lazy"></button>`
+        )
+        .join('')}</div></div>`
+    : '';
+
+  return `<div class="gallery-showcase lux-card" data-active-idx="0">
+    ${luxCornersHTML()}
+    <div class="gallery-main">
+      ${hasImgs
+        ? `<div class="cv-frame" data-zoom-trigger="1">
+            <div class="bg" style="background-image:url('${esc(firstSrc)}')"></div>
+            <img class="g-main-img" src="${esc(firstSrc)}" alt="${esc(g.name)}" referrerpolicy="no-referrer">
+          </div>
+          <button type="button" class="zoom" data-z="${g.id}" data-gallery="1" aria-label="تكبير الصورة">${ZI}</button>`
+        : `<div class="art" style="background:linear-gradient(145deg,${c[0]},${c[1]})"><b>${esc(g.name)}</b><em>${EM[h % EM.length]}</em></div>`}
+      ${disc(g) ? `<span class="sale">-${disc(g)}%</span>` : ''}
+      ${navArrows}
+    </div>
+    ${thumbs}
+  </div>`;
+}
+
+function wireGalleryWidget(container: HTMLElement | null, g: Game, imgs: string[]) {
+  if (!container || imgs.length === 0) return;
+  const showcase = container.querySelector('.gallery-showcase') as HTMLElement | null;
+  if (!showcase) return;
+  const mainImg = showcase.querySelector('img.g-main-img') as HTMLImageElement | null;
+  const bgEl = showcase.querySelector('.gallery-main .bg') as HTMLElement | null;
+  const counterEl = showcase.querySelector('.gallery-counter') as HTMLElement | null;
+  const thumbBtns = [...showcase.querySelectorAll('.g-thumb')] as HTMLButtonElement[];
+  let activeIdx = 0;
+
+  const setActive = (nextIdx: number) => {
+    if (!imgs.length) return;
+    activeIdx = ((nextIdx % imgs.length) + imgs.length) % imgs.length;
+    showcase.dataset.activeIdx = String(activeIdx);
+    const nextSrc = imgs[activeIdx];
+
+    if (mainImg) {
+      mainImg.classList.add('swapping');
+      setTimeout(() => {
+        mainImg.src = nextSrc;
+        if (bgEl) bgEl.style.backgroundImage = `url('${nextSrc}')`;
+        requestAnimationFrame(() => mainImg.classList.remove('swapping'));
+      }, 130);
+    }
+
+    if (counterEl) counterEl.textContent = `${activeIdx + 1} / ${imgs.length}`;
+    thumbBtns.forEach((btn, idx) => {
+      const isAct = idx === activeIdx;
+      btn.classList.toggle('active', isAct);
+      btn.setAttribute('aria-pressed', isAct ? 'true' : 'false');
+      if (isAct) {
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      }
+    });
+  };
+
+  thumbBtns.forEach(btn => {
+    btn.onclick = (e: MouseEvent) => {
+      e.stopPropagation();
+      const idx = +(btn.dataset.idx || 0);
+      if (idx !== activeIdx) setActive(idx);
+    };
+  });
+
+  const prevBtn = showcase.querySelector('.g-nav.prev') as HTMLButtonElement | null;
+  const nextBtn = showcase.querySelector('.g-nav.next') as HTMLButtonElement | null;
+  if (prevBtn) prevBtn.onclick = (e: MouseEvent) => { e.stopPropagation(); setActive(activeIdx - 1); };
+  if (nextBtn) nextBtn.onclick = (e: MouseEvent) => { e.stopPropagation(); setActive(activeIdx + 1); };
+
+  const frame = showcase.querySelector('[data-zoom-trigger="1"]') as HTMLElement | null;
+  if (frame) {
+    frame.onclick = () => {
+      openLb(g.id, showcase.querySelector('.gallery-main') as HTMLElement, activeIdx);
+    };
+  }
+}
 
 function openDet(g: Game, keep?: boolean) {
   if (!g) return;
   curId = g.id;
-  $('det').classList.toggle('nr', !!keep);
+  const detEl = $('det');
+  detEl.classList.toggle('nr', !!keep);
+
+  let ambientEl = detEl.querySelector('.det-ambient') as HTMLElement | null;
+  if (!ambientEl) {
+    ambientEl = document.createElement('div');
+    ambientEl.className = 'det-ambient';
+    detEl.insertBefore(ambientEl, detEl.firstChild);
+  }
+  ambientEl.style.backgroundImage = g.img ? `url('${g.img}')` : 'none';
+
   const o = [...games].sort((a, b) => (a.order || 0) - (b.order || 0));
   const k = o.findIndex(x => x.id === g.id);
   const rel = [...o.slice(k + 1), ...o.slice(0, k)].slice(0, 12);
   relIds = rel.map(r => r.id);
   const url = esc(steam(g));
 
-  const goalBox = `<div class="blk"><h4>🎯 هدف اللعبة</h4><p>${goalOf(g) ? esc(goalOf(g)) : 'ما أضيف هدف لهذي اللعبة بعد.'}</p></div>`;
-  const gameMedia = mediaOf(g);
-  const safeTrailer = steamMediaUrl(gameMedia?.trailer?.url);
-  const safePoster = steamMediaUrl(gameMedia?.trailer?.poster);
-  const screenshots = (gameMedia?.screenshots || []).map(s => ({
-    full: steamMediaUrl(s.full), thumb: steamMediaUrl(s.thumb)
-  })).filter(s => s.full).slice(0, 8);
-  const trailerKind = gameMedia?.trailer?.format === 'hls' || safeTrailer.includes('.m3u8') ? 'hls' : 'mp4';
-  const trailerSection = safeTrailer ? `<div class="steam-gallery-section">
-    <h4>🎬 التريلر الرسمي من Steam</h4>
-    <video class="steam-trailer" controls playsinline preload="none" ${safePoster ? `poster="${safePoster}"` : ''}>
-      متصفحك لا يدعم تشغيل الفيديو.
-    </video>
-    <a class="steam-trailer-fallback" href="${url}" target="_blank" rel="noopener" style="display:none">شاهد الفيديو على Steam</a>
-  </div>` : '';
-  const shotsSection = screenshots.length ? `<div class="steam-gallery-section">
-    <h4>📸 لقطات من اللعبة</h4>
-    <div class="steam-preview-box"><img class="steam-preview" src="${screenshots[0].full}" alt="لقطات ${esc(g.name)}" loading="lazy"></div>
-    <div class="steam-shot-list" aria-label="لقطات من Steam">
-      ${screenshots.map((shot, i) => `<button class="steam-shot ${i === 0 ? 'active' : ''}" data-steam-shot="${i}" aria-label="عرض لقطة ${i + 1}"><img src="${shot.thumb || shot.full}" alt="لقطة ${i + 1}" loading="lazy"></button>`).join('')}
+  const imgs = getGalleryImages(g);
+  const trailerInfo = parseTrailerEmbed(g.trailer);
+  const hasTrailer = !!trailerInfo;
+
+  const kickerParts = ['لعبة جماعية', 'CO-OP'];
+  if (g.order) kickerParts.push(`#${g.order}`);
+  if (playersOf(g)) kickerParts.push(`${esc(playersOf(g))} لاعبين`);
+  const kickerHtml = kickerParts.map(p => `<span>${p}</span>`).join('<span class="sep">·</span>');
+
+  const leadText = g.desc ? esc(g.desc) : goalOf(g) ? esc(goalOf(g)) : 'تجربة لعب جماعية مميزة مع أصدقائك عبر ستيم.';
+  const discountPct = disc(g);
+  const priceHtml = `<span>${(+g.price).toFixed(2)} SR</span>${discountPct ? `<s>${(+g.old).toFixed(2)} SR</s><span class="det-disc-txt">خصم ${discountPct}%</span>` : ''}`;
+
+  const coverOnlyCard = `<div class="gallery-showcase lux-card" data-active-idx="0">
+    ${luxCornersHTML()}
+    <div class="gallery-main">
+      ${g.img
+        ? `<div class="cv-frame" data-zoom-trigger="1"><div class="bg" style="background-image:url('${esc(g.img)}')"></div><img class="g-main-img" src="${esc(g.img)}" alt="${esc(g.name)}" referrerpolicy="no-referrer"></div><button type="button" class="zoom" data-z="${g.id}" data-gallery="1" aria-label="تكبير الصورة">${ZI}</button>`
+        : cover(g)}
+      ${discountPct ? `<span class="sale">-${discountPct}%</span>` : ''}
     </div>
-  </div>` : '';
-  const steamGallery = trailerSection || shotsSection ? `<section class="steam-media"><h3>شاهد اللعبة</h3>${trailerSection}${shotsSection}<p class="steam-media-source">المقاطع والصور مأخوذة من صفحة اللعبة الرسمية على Steam.</p></section>` : '';
-  const quick = adminMode
-    ? `<div class="steam qe"><h4>تعديل سريع</h4><div class="row"><div><label>السعر</label><input id="qp" type="number" step="0.01" value="${g.price}"></div><div><label>قبل الخصم</label><input id="qo" type="number" step="0.01" value="${g.old || ''}"></div></div><label>عدد اللاعبين</label><input id="qpl" value="${esc(playersOf(g))}"><label>هدف اللعبة</label><textarea id="qg" rows="3">${esc(goalOf(g))}</textarea><button class="btn" id="qs" style="margin-top:14px;width:100%">حفظ التعديلات</button></div>`
-    : '';
+  </div>`;
 
-  $('dg').innerHTML = `<div class="dl"><div class="cv" style="aspect-ratio:${arOf(g)}">${cover(g)}<button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button>${disc(g) ? `<span class="sale">-${disc(g)}%</span>` : ''}</div>${goalBox}${quick}${steamGallery}</div>
-  <div class="dt"><small>لعبة جماعية · CO-OP</small><h2>${esc(g.name)}</h2>
-  ${adminMode ? `<div class="abx"><button class="sbtn" id="de">تعديل اللعبة</button><button class="sbtn" id="dc">تكرار</button><button class="sbtn del" id="dd">حذف</button></div>` : ''}
-  <div class="pr">${prHtml(g)}</div>
-  <div class="info"><div><span>عدد اللاعبين</span><b dir="ltr">${esc(playersOf(g) || '-')}</b></div><div><span>الترتيب</span><b>#${g.order || '-'}</b></div><div><span>الخصم</span><b>${disc(g) ? disc(g) + '%' : 'بدون'}</b></div><div><span>المنصة</span><b>Steam</b></div></div>
-  ${voteBtn(g, true)}<div id="dvn" class="vn"></div>
-  <a class="btn steam-btn" href="${url}" target="_blank" rel="noopener">
-    <span class="btn-start">
-      <svg viewBox="0 0 24 24" class="steam-ico" aria-hidden="true"><path fill="currentColor" d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.029 4.524 4.524s-2.03 4.524-4.524 4.524h-.105l-4.076 2.811c0 .052.005.105.005.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 14.819C1.94 20.05 6.705 24 12 24c6.627 0 12-5.373 12-12S18.627 0 11.979 0zM7.54 18.216c-.98 0-1.774-.794-1.774-1.774 0-.413.142-.793.38-1.096l1.966.812a1.764 1.764 0 0 0 1.202 2.058c-.538.165-1.115.148-1.774 0zm8.4-7.078c-1.255 0-2.272-1.018-2.272-2.273s1.017-2.273 2.272-2.273c1.256 0 2.273 1.018 2.273 2.273 0 1.255-1.017 2.273-2.273 2.273zm-4.708 6.002a2.02 2.02 0 0 1-1.396.586c-1.115 0-2.02-.904-2.02-2.02 0-.256.05-.499.138-.724l2.126.88a1.01 1.01 0 0 0 1.152 1.278z"/></svg>
-    </span>
-    <span class="btn-label">افتح في ستيم</span>
-    <span class="btn-end">
-      <svg viewBox="0 0 24 24" class="arr-ico" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </span>
-  </a></div>`;
+  const shareIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`;
+  const steamIcon = `<svg viewBox="0 0 24 24" class="steam-ico" aria-hidden="true"><path fill="currentColor" d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.029 4.524 4.524s-2.03 4.524-4.524 4.524h-.105l-4.076 2.811c0 .052.005.105.005.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 14.819C1.94 20.05 6.705 24 12 24c6.627 0 12-5.373 12-12S18.627 0 11.979 0zM7.54 18.216c-.98 0-1.774-.794-1.774-1.774 0-.413.142-.793.38-1.096l1.966.812a1.764 1.764 0 0 0 1.202 2.058c-.538.165-1.115.148-1.774 0zm8.4-7.078c-1.255 0-2.272-1.018-2.272-2.273s1.017-2.273 2.272-2.273c1.256 0 2.273 1.018 2.273 2.273 0 1.255-1.017 2.273-2.273 2.273zm-4.708 6.002a2.02 2.02 0 0 1-1.396.586c-1.115 0-2.02-.904-2.02-2.02 0-.256.05-.499.138-.724l2.126.88a1.01 1.01 0 0 0 1.152 1.278z"/></svg>`;
+  const arrowIcon = `<svg viewBox="0 0 24 24" class="arr-ico" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  $('dg').querySelectorAll('.dt,.dl').forEach(c => [...c.children].forEach((x, i) => (x as HTMLElement).style.setProperty('--i', String(i))));
-  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
-  const trailerPlayer = $('dg').querySelector<HTMLVideoElement>('.steam-trailer');
-  if (trailerPlayer && safeTrailer) {
-    const fallback = $('dg').querySelector<HTMLAnchorElement>('.steam-trailer-fallback');
-    const showTrailerFallback = () => { if (fallback) fallback.style.display = 'block'; };
-    trailerPlayer.addEventListener('error', showTrailerFallback);
-    if (trailerKind === 'mp4' || trailerPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-      trailerPlayer.src = safeTrailer;
-    } else {
-      void loadSteamHlsPlayer().then(Hls => {
-        if (!Hls?.isSupported() || !$('dg').contains(trailerPlayer)) {
-          showTrailerFallback(); return;
+  $('dg').innerHTML = `
+  <div class="dt">
+    <div class="det-kicker">${kickerHtml}</div>
+    <h2>${esc(g.name)}</h2>
+    ${adminMode ? `<div class="abx"><button class="sbtn" id="de">تعديل اللعبة</button><button class="sbtn" id="dc">تكرار</button><button class="sbtn del" id="dd">حذف</button></div>` : ''}
+    <p class="det-lead">${leadText}</p>
+    <div class="pr">${priceHtml}</div>
+    <div class="det-actions">
+      <a class="btn btn-primary-lux steam-cta" href="${url}" target="_blank" rel="noopener">
+        ${steamIcon}
+        <span>افتح في ستيم</span>
+        ${arrowIcon}
+      </a>
+      ${voteBtn(g, true)}
+      <button type="button" class="det-share" id="dshare">${shareIcon}<span>مشاركة اللعبة</span></button>
+    </div>
+    <div id="dvn" class="vn"></div>
+  </div>
+  <div class="dl">
+    ${hasTrailer ? coverOnlyCard : buildGalleryWidget(g, imgs)}
+  </div>`;
+
+  if (hasTrailer && trailerInfo) {
+    const posterSrc = esc((g.trailerPoster || g.img || '').trim());
+    const h = hash(g.name);
+    const c = GR[h % GR.length];
+    const posterVisual = posterSrc
+      ? `<img src="${posterSrc}" alt="${esc(g.name)} trailer preview" referrerpolicy="no-referrer">`
+      : `<div class="art" style="background:linear-gradient(145deg,${c[0]},${c[1]})"><b>${esc(g.name)}</b></div>`;
+
+    $('dmedia').innerHTML = `<section class="media-sec lux-card">
+      ${luxCornersHTML()}
+      <div class="media-head">
+        <h3>العرض الدعائي واللقطات</h3>
+        <span>معاينة اللعبة الرسمية ولقطات من داخل اللعب</span>
+      </div>
+      <div class="media-grid">
+        <div class="trailer-col">
+          <p class="media-sublabel">العرض الدعائي (Trailer)</p>
+          <div class="trailer-card lux-card" id="dtrailer">
+            ${luxCornersHTML()}
+            <div class="trailer-poster" id="dtrailerBtn" role="button" tabindex="0" aria-label="تشغيل العرض الدعائي">
+              ${posterVisual}
+              <div class="trailer-scrim">
+                <span class="trailer-play"><svg viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4"/></svg></span>
+                <span class="trailer-caption">تشغيل العرض الدعائي</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-col">
+          <p class="media-sublabel">لقطات الشاشة (${Math.max(1, imgs.length)})</p>
+          ${buildGalleryWidget(g, imgs)}
+        </div>
+      </div>
+    </section>`;
+
+    wireGalleryWidget($('dmedia'), g, imgs);
+
+    const startTrailer = () => {
+      const box = $('dtrailer');
+      if (!box) return;
+      const playMarkup =
+        trailerInfo.type === 'youtube'
+          ? `<iframe class="trailer-player" src="${esc(trailerInfo.src)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+          : `<video class="trailer-player" src="${esc(trailerInfo.src)}" ${posterSrc ? `poster="${posterSrc}"` : ''} controls autoplay playsinline></video>`;
+      box.innerHTML = `${luxCornersHTML()}${playMarkup}`;
+    };
+    const tBtn = $('dtrailerBtn');
+    if (tBtn) {
+      tBtn.onclick = startTrailer;
+      tBtn.onkeydown = (ev: KeyboardEvent) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          startTrailer();
         }
-        const instance = new Hls({ enableWorker: true, maxBufferLength: 30 });
-        activeSteamHls = instance;
-        instance.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean }) => {
-          if (data.fatal) { showTrailerFallback(); instance.destroy(); if (activeSteamHls === instance) activeSteamHls = null; }
-        });
-        instance.loadSource(safeTrailer);
-        instance.attachMedia(trailerPlayer);
-      }).catch(() => showTrailerFallback());
+      };
+    }
+  } else {
+    $('dmedia').innerHTML = '';
+    wireGalleryWidget($('dg'), g, imgs);
+  }
+
+  // Cover zoom click handler when trailer is present
+  if (hasTrailer) {
+    const dgFrame = $('dg').querySelector('[data-zoom-trigger="1"]') as HTMLElement | null;
+    if (dgFrame) {
+      dgFrame.onclick = () => openLb(g.id, $('dg').querySelector('.gallery-main') as HTMLElement, 0);
     }
   }
-  const steamMediaElement = $('dg').querySelector('.steam-media') as HTMLElement | null;
-  if (steamMediaElement && screenshots.length) {
-    steamMediaElement.querySelectorAll<HTMLButtonElement>('[data-steam-shot]').forEach(button => {
-      button.onclick = () => {
-        const selected = screenshots[Number(button.dataset.steamShot)];
-        if (!selected) return;
-        const preview = steamMediaElement.querySelector<HTMLImageElement>('.steam-preview');
-        if (preview) preview.src = selected.full;
-        steamMediaElement.querySelectorAll('[data-steam-shot]').forEach(b => b.classList.toggle('active', b === button));
-      };
-    });
-  }
+
+  const goalMain = goalOf(g) ? esc(goalOf(g)) : 'ما أضيف هدف لهذي اللعبة بعد.';
+  const showDescSub = g.desc && goalOf(g) && g.desc.trim() !== goalOf(g).trim();
+  const goalCard = `<div class="blk lux-card">
+    ${luxCornersHTML()}
+    <h4>هدف اللعبة وتفاصيلها</h4>
+    <p>${goalMain}</p>
+    ${showDescSub ? `<p class="blk-sub">${esc(g.desc)}</p>` : ''}
+  </div>`;
+
+  const infoCard = `<div class="info lux-card">
+    ${luxCornersHTML()}
+    <div class="info-title"><span>معلومات اللعبة</span><small>CO-OP · STEAM</small></div>
+    <div class="info-row"><span>عدد اللاعبين</span><b dir="ltr">${esc(playersOf(g) || '-')}</b></div>
+    <div class="info-row"><span>الترتيب</span><b>#${g.order || '-'}</b></div>
+    <div class="info-row"><span>الخصم</span><b>${discountPct ? discountPct + '%' : 'بدون'}</b></div>
+    <div class="info-row"><span>المنصة</span><b>Steam</b></div>
+    ${g.sp ? `<div class="info-row"><span>تقييم ستيم</span><b>${esc(g.sp)}% إيجابي</b></div>` : ''}
+  </div>`;
+
+  const quickCard = adminMode
+    ? `<div class="steam qe lux-card">${luxCornersHTML()}<h4>تعديل سريع</h4><div class="row"><div><label>السعر</label><input id="qp" type="number" step="0.01" value="${g.price}"></div><div><label>قبل الخصم</label><input id="qo" type="number" step="0.01" value="${g.old || ''}"></div></div><label>عدد اللاعبين</label><input id="qpl" value="${esc(playersOf(g))}"><label>هدف اللعبة</label><textarea id="qg" rows="3">${esc(goalOf(g))}</textarea><button class="btn btn-primary-lux" id="qs" style="margin-top:14px;width:100%">حفظ التعديلات</button></div>`
+    : '';
+
+  $('dinfo').innerHTML = `<div class="det-cards-grid">${goalCard}${infoCard}</div>${quickCard}`;
+
+  $('dg').querySelectorAll('.dt,.dl').forEach(c => [...c.children].forEach((x, i) => (x as HTMLElement).style.setProperty('--i', String(i))));
   $('dx').innerHTML = `<div class="sec"><div class="sh"><h3>ألعاب أخرى قد تعجبك</h3><div class="sizes" id="sizes2"></div></div><div class="relw" id="relw"><button class="rarr rl" id="rnl" aria-label="التالي"><svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button><div class="rel" id="rel"></div><button class="rarr rr" id="rpr" aria-label="السابق"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button></div></div>`;
-  
+
   buildRel();
   buildSizes();
   $('rel').onscroll = relArrows;
   $('rnl').onclick = () => relGo(-1);
   $('rpr').onclick = () => relGo(1);
+
+  const shareBtn = $('dshare');
+  if (shareBtn) {
+    shareBtn.onclick = async () => {
+      const shareUrl = g.link || location.href;
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        shareBtn.classList.add('copied');
+        const lbl = shareBtn.querySelector('span');
+        if (lbl) lbl.textContent = 'تم نسخ الرابط';
+        toast('تم نسخ رابط اللعبة بنجاح');
+        setTimeout(() => {
+          shareBtn.classList.remove('copied');
+          if (lbl) lbl.textContent = 'مشاركة اللعبة';
+        }, 2200);
+      } catch (e) {
+        toast('انسخ الرابط من المتصفح للمشاركة');
+      }
+    };
+  }
 
   if (adminMode) {
     $('de').onclick = () => openForm(g);
@@ -850,8 +1017,8 @@ function openDet(g: Game, keep?: boolean) {
   };
   refreshDetVote();
 
-  $('det').classList.add('on');
-  if (!keep) $('det').scrollTo({ top: 0, behavior: 'smooth' });
+  detEl.classList.add('on');
+  if (!keep) detEl.scrollTo({ top: 0, behavior: 'smooth' });
   document.body.style.overflow = 'hidden';
 }
 
@@ -872,10 +1039,8 @@ $('dx').onclick = (e: MouseEvent) => {
 };
 
 const closeDet = () => {
-  const trailer = $('dg').querySelector<HTMLVideoElement>('.steam-trailer');
-  if (trailer) trailer.pause();
-  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
   $('det').classList.remove('on');
+  if ($('dmedia')) $('dmedia').innerHTML = '';
   document.body.style.overflow = '';
 };
 $('bk').onclick = closeDet;
@@ -896,7 +1061,7 @@ $('chips').onclick = (e: MouseEvent) => {
 };
 
 const KEY = `<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M13 10l2 2"/></svg>`;
-const themeNow = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+const themeNow = () => document.documentElement.dataset.theme || 'dark';
 
 function setTheme(t: string) {
   document.documentElement.dataset.theme = t;
@@ -944,7 +1109,7 @@ function buildMenu() {
 
   if (adminMode) {
     h += `<div class="msep">أدوات الأدمن</div>` +
-      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['out', 'تسجيل خروج المشرف']]
+      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['pw', 'تغيير كلمة السر'], ['out', 'خروج من وضع الأدمن']]
         .map((x, i) => `<button class="ml sm2" style="--i:${7 + i}" data-act="${x[0]}">${x[1]}</button>`)
         .join('');
   } else {
@@ -990,28 +1155,95 @@ function importGamesJson() {
 async function fillAdminBox() {
   const bx = $('admb');
   if (!bx) return;
-  bx.innerHTML = `<button type="button" id="mkey" class="admin-google-btn">
-    <span class="admin-google-icon" aria-hidden="true">G</span>
-    <span>تسجيل الدخول بحساب Google</span>
-    <span class="admin-google-arrow" aria-hidden="true">←</span>
-  </button>`;
+  bx.innerHTML = `${luxCornersHTML()}<div class="ar"><input id="mpw" type="password" autocomplete="off" placeholder="اكتب رمز الأدمن"><button id="mkey" type="button" aria-label="دخول الأدمن">${KEY}<span>دخول الأدمن</span></button></div>`;
   $('mkey').onclick = adminLogin;
+  const mpw = $('mpw') as HTMLInputElement | null;
+  if (mpw) {
+    mpw.onkeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') adminLogin();
+    };
+  }
 }
 
-async function adminLogin() {
-  try {
-    const approved = await loginApprovedAdmin();
-    if (!approved) {
-      await logoutAdmin();
-      return toast('هذا الحساب غير مسجل كمشرف في Firebase');
-    }
-    adminApproved = true;
+function admShake() {
+  const b = $('admb');
+  if (!b) return;
+  b.classList.remove('shake');
+  void b.offsetWidth;
+  b.classList.add('shake');
+}
+
+function unlockAdmin() {
+  const k = $('mkey');
+  if (k) k.classList.add('ok');
+  setTimeout(() => {
     setAdmin(true);
     buildMenu();
     toast('أهلاً بك 🔐');
-  } catch (err) {
-    console.error('Admin sign-in error', err);
-    toast('تعذّر تسجيل الدخول — تحقق من نطاق Firebase وإعدادات Google');
+  }, 450);
+}
+
+let fails = 0;
+let lockUntil = 0;
+
+async function adminLogin() {
+  const mpw = $('mpw') as HTMLInputElement | null;
+  const p = mpw ? mpw.value : '';
+  if (!p) {
+    admShake();
+    return toast('اكتب رمز الأدمن');
+  }
+  if (Date.now() < lockUntil) {
+    admShake();
+    return toast('انتظر شوي ثم جرّب مرة ثانية');
+  }
+
+  let loggedIn = false;
+  let errMsg = 'الرمز غلط';
+
+  if (backendAvailable) {
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p })
+      });
+      if (res.status === 404) {
+        backendAvailable = false;
+      } else {
+        const data = await res.json();
+        if (res.ok && data.success) {
+          loggedIn = true;
+        } else {
+          errMsg = data.error || 'الرمز غلط';
+        }
+      }
+    } catch (e) {
+      backendAvailable = false;
+    }
+  }
+
+  // If backend is not available (e.g. static host on Vercel)
+  if (!backendAvailable && !loggedIn) {
+    const ok = await clientCheckPassword(p);
+    if (ok) {
+      loggedIn = true;
+    } else {
+      errMsg = 'الرمز غلط';
+    }
+  }
+
+  if (loggedIn) {
+    fails = 0;
+    unlockAdmin();
+  } else {
+    if (++fails >= 3) {
+      lockUntil = Date.now() + 30000;
+      fails = 0;
+    }
+    if (mpw) mpw.value = '';
+    admShake();
+    toast(errMsg);
   }
 }
 
@@ -1056,26 +1288,67 @@ $('menu').onclick = (e: MouseEvent) => {
   } else if (a === 'imp') {
     drawer(false);
     importGamesJson();
+  } else if (a === 'pw') {
+    drawer(false);
+    openPw('setup');
   } else if (a === 'out') {
     drawer(false);
-    void logoutAdmin();
-    adminApproved = false;
     setAdmin(false);
   }
 };
 
 function setAdmin(on: boolean) {
-  adminMode = on && adminApproved;
+  adminMode = on;
+  try {
+    sessionStorage.setItem('adm', adminMode ? '1' : '0');
+  } catch (e) {}
   $('abar').classList.toggle('on', adminMode);
   render();
   syncDet();
 }
 
 $('aex').onclick = () => {
-  void logoutAdmin();
-  adminApproved = false;
   setAdmin(false);
-  toast('تم تسجيل خروج المشرف');
+  toast('أنت الحين تشوف الموقع مثل أخوياك 👁️');
+};
+
+let pmode = 'setup';
+function openPw(m: string) {
+  pmode = m;
+  $('pt').textContent = 'تغيير رمز الأدمن 🔑';
+  $('pp').textContent = 'اختر رمزاً جديداً لصفحة الأدمن:';
+  $('pw2').style.display = 'block';
+  ($('pw') as HTMLInputElement).value = '';
+  ($('pw2') as HTMLInputElement).value = '';
+  ($('pdlg') as HTMLDialogElement).showModal();
+  $('pw').focus();
+}
+
+$('pcx').onclick = () => ($('pdlg') as HTMLDialogElement).close();
+
+$('pf').onsubmit = async (e: Event) => {
+  e.preventDefault();
+  const p = ($('pw') as HTMLInputElement).value;
+  const p2 = ($('pw2') as HTMLInputElement).value;
+  if (p.length < 4) return toast('الرمز قصير (4 أحرف على الأقل)');
+  if (p !== p2) return toast('الرمزين مو متطابقين');
+
+  await clientSetPassword(p);
+  if (backendAvailable) {
+    try {
+      const res = await fetch('/api/admin/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p })
+      });
+      if (res.status === 404) backendAvailable = false;
+    } catch (err) {
+      backendAvailable = false;
+    }
+  }
+
+  ($('pdlg') as HTMLDialogElement).close();
+  toast('تم حفظ الرمز الجديد 🔑');
 };
 
 document.addEventListener('keydown', e => {
@@ -1107,33 +1380,71 @@ function openForm(g?: Game) {
   ($('fr') as HTMLInputElement).value = g ? String(g.order) : String(games.length + 1);
   ($('fpl') as HTMLInputElement).value = g ? playersOf(g) : '';
   ($('fg') as HTMLTextAreaElement).value = g ? goalOf(g) : '';
+  ($('ftr') as HTMLInputElement).value = g ? g.trailer || '' : '';
+  ($('fpo') as HTMLInputElement).value = g ? g.trailerPoster || '' : '';
+  ($('fss') as HTMLTextAreaElement).value = g && Array.isArray(g.screenshots) ? g.screenshots.join('\n') : '';
   ($('fi') as HTMLInputElement).value = '';
+  const fssi = $('fssi') as HTMLInputElement | null;
+  if (fssi) fssi.value = '';
   setImg(g ? g.img : '', g ? g.ar : 0);
   ($('dlg') as HTMLDialogElement).showModal();
 }
 
 $('cx').onclick = () => ($('dlg') as HTMLDialogElement).close();
 
+function resizeBlobToJpeg(f: Blob, maxDim = 760): Promise<{ dataUrl: string; ar: number }> {
+  return new Promise(resolve => {
+    const u = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = () => {
+      const m = Math.min(1, maxDim / Math.max(im.width, im.height));
+      const w = Math.round(im.width * m);
+      const h = Math.round(im.height * m);
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      c.getContext('2d')?.drawImage(im, 0, 0, w, h);
+      resolve({ dataUrl: c.toDataURL('image/jpeg', 0.82), ar: w / h });
+      URL.revokeObjectURL(u);
+    };
+    im.onerror = () => {
+      URL.revokeObjectURL(u);
+      resolve({ dataUrl: '', ar: 0.8 });
+    };
+    im.src = u;
+  });
+}
+
 function procBlob(f: Blob) {
-  const u = URL.createObjectURL(f);
-  const im = new Image();
-  im.onload = () => {
-    const m = Math.min(1, 760 / Math.max(im.width, im.height));
-    const w = Math.round(im.width * m);
-    const h = Math.round(im.height * m);
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    c.getContext('2d')?.drawImage(im, 0, 0, w, h);
-    setImg(c.toDataURL('image/jpeg', 0.82), w / h);
-    URL.revokeObjectURL(u);
-  };
-  im.src = u;
+  resizeBlobToJpeg(f, 760).then(({ dataUrl, ar }) => {
+    if (dataUrl) setImg(dataUrl, ar);
+  });
 }
 
 $('fi').onchange = (e: any) => {
   if (e.target.files[0]) procBlob(e.target.files[0]);
 };
+if ($('fssBtn') && $('fssi')) {
+  $('fssBtn').onclick = () => ($('fssi') as HTMLInputElement).click();
+  $('fssi').onchange = async (e: any) => {
+    const files: FileList | undefined = e.target.files;
+    if (!files || !files.length) return;
+    const area = $('fss') as HTMLTextAreaElement;
+    const added: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (!f.type.startsWith('image/')) continue;
+      const { dataUrl } = await resizeBlobToJpeg(f, 960);
+      if (dataUrl) added.push(dataUrl);
+    }
+    if (added.length) {
+      const cur = area.value.trim();
+      area.value = cur ? cur + '\n' + added.join('\n') : added.join('\n');
+      toast(`تمت إضافة ${added.length} لقطة شاشة`);
+    }
+    e.target.value = '';
+  };
+}
 $('pz').onclick = () => $('fi').click();
 $('pz').ondragover = e => e.preventDefault();
 $('pz').ondrop = (e: DragEvent) => {
@@ -1158,6 +1469,11 @@ document.addEventListener('paste', e => {
 
 $('f').onsubmit = async (e: Event) => {
   e.preventDefault();
+  const rawScreenshots = ($('fss') as HTMLTextAreaElement).value
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
   const d: Partial<Game> = {
     name: ($('fn') as HTMLInputElement).value.trim(),
     price: +($('fp') as HTMLInputElement).value,
@@ -1167,7 +1483,10 @@ $('f').onsubmit = async (e: Event) => {
     img: imgData,
     ar: imgData ? +imgAr.toFixed(3) : 0,
     players: ($('fpl') as HTMLInputElement).value.trim(),
-    goal: ($('fg') as HTMLTextAreaElement).value.trim()
+    goal: ($('fg') as HTMLTextAreaElement).value.trim(),
+    trailer: ($('ftr') as HTMLInputElement).value.trim(),
+    trailerPoster: ($('fpo') as HTMLInputElement).value.trim(),
+    screenshots: rawScreenshots
   };
 
   ($('dlg') as HTMLDialogElement).close();
@@ -1212,7 +1531,7 @@ $('f').onsubmit = async (e: Event) => {
 async function seed() {
   if (games.length && !(await askC('هل تريد إعادة تحميل القائمة الافتراضية؟'))) return;
   drawer(false);
-  saveGamesToLocal(catalogGames.map(withSaudiStorePrice));
+  saveGamesToLocal([...(defaultGames as Game[])]);
   if (backendAvailable) {
     commit(async () => {
       const res = await fetch('/api/games/seed', {
@@ -1540,33 +1859,74 @@ $('bv').onclick = openVP;
 $('dvt').onclick = openVP;
 
 /* ===== Lightbox ===== */
+type LbItem = { id: string; name: string; sub: string; img: string; ar: number };
 let lbI = 0;
-let lbList: Game[] = [];
+let lbList: LbItem[] = [];
+let lbMode: 'games' | 'gallery' = 'games';
 let lbReady = false;
 let zoomed = false;
 let lbBusy = false;
 
-function lbFill(g: Game) {
-  $('lbs').innerHTML = `<div class="cv lbimg" id="lbimg" style="--ar:${arOf(g)};aspect-ratio:${arOf(g)}"><div class="zin">${cover(g)}</div><span class="glare"></span></div>`;
-  $('lbc').innerHTML = `<b>${esc(g.name)}</b><span>${priceLabel(g)}${disc(g) ? ` · -${disc(g)}%` : ''}</span>`;
+function lbFill(item: LbItem) {
+  const h = hash(item.name);
+  const c = GR[h % GR.length];
+  const inner = item.img
+    ? `<div class="bg" style="background-image:url('${esc(item.img)}')"></div><img src="${esc(item.img)}" alt="${esc(item.name)}" referrerpolicy="no-referrer">`
+    : `<div class="art" style="background:linear-gradient(145deg,${c[0]},${c[1]})"><b>${esc(item.name)}</b><em>${EM[h % EM.length]}</em></div>`;
+  $('lbs').innerHTML = `<div class="cv lbimg" id="lbimg" style="--ar:${item.ar};aspect-ratio:${item.ar}"><div class="zin">${inner}</div><span class="glare"></span></div>`;
+  $('lbc').innerHTML = `<b>${esc(item.name)}</b><span>${esc(item.sub)}</span>`;
   $('lbcnt').textContent = `${lbI + 1} / ${lbList.length}`;
-  $('lbamb').style.backgroundImage = g.img ? `url('${g.img}')` : 'none';
-  $('lbamb').style.backgroundColor = g.img ? 'transparent' : GR[hash(g.name) % GR.length][0];
+  $('lbamb').style.backgroundImage = item.img ? `url('${esc(item.img)}')` : 'none';
+  $('lbamb').style.backgroundColor = item.img ? 'transparent' : c[0];
   zoomed = false;
 }
 
-function lbSrcFor(g: Game) {
+function lbSrcFor(item: LbItem) {
   if ($('det').classList.contains('on')) {
-    return curId === g.id
-      ? (document.querySelector('#dg .cv') as HTMLElement)
-      : (document.querySelector(`#dx .rc[data-o="${g.id}"] .cv`) as HTMLElement);
+    if (lbMode === 'gallery') {
+      return (document.querySelector('#dmedia .gallery-main') || document.querySelector('#dg .gallery-main')) as HTMLElement;
+    }
+    return curId === item.id
+      ? ((document.querySelector('#dg .gallery-main') || document.querySelector('#dg .cv')) as HTMLElement)
+      : (document.querySelector(`#dx .rc[data-o="${item.id}"] .cv`) as HTMLElement);
   }
-  return document.querySelector(`#grid .cv[data-o="${g.id}"]`) as HTMLElement;
+  return document.querySelector(`#grid .cv[data-o="${item.id}"]`) as HTMLElement;
 }
 
-function openLb(id: string, src?: HTMLElement) {
-  lbList = [...games].sort((a, b) => (a.order || 0) - (b.order || 0));
-  lbI = Math.max(0, lbList.findIndex(x => x.id === id));
+function openLb(id: string, src?: HTMLElement, galleryIdx?: number) {
+  if (typeof galleryIdx === 'number') {
+    const g = games.find(x => x.id === id);
+    const imgs = g ? getGalleryImages(g) : [];
+    if (g && imgs.length) {
+      lbMode = 'gallery';
+      lbList = imgs.map((imgUrl, idx) => ({
+        id: g.id,
+        name: g.name,
+        sub: `لقطة ${idx + 1} من ${imgs.length}`,
+        img: imgUrl,
+        ar: idx === 0 ? arOf(g) : 1.6
+      }));
+      lbI = Math.max(0, Math.min(galleryIdx, lbList.length - 1));
+    } else {
+      lbMode = 'games';
+    }
+  } else {
+    lbMode = 'games';
+  }
+
+  if (lbMode === 'games') {
+    lbList = [...games]
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map(g => ({
+        id: g.id,
+        name: g.name,
+        sub: `${(+g.price).toFixed(2)} SR${disc(g) ? ` · -${disc(g)}%` : ''}`,
+        img: g.img,
+        ar: arOf(g)
+      }));
+    lbI = Math.max(0, lbList.findIndex(x => x.id === id));
+  }
+
   lbFill(lbList[lbI]);
   lbReady = false;
   lbBusy = false;
@@ -1591,9 +1951,9 @@ function openLb(id: string, src?: HTMLElement) {
 
 function closeLb() {
   if (!$('lb').classList.contains('on')) return;
-  const g = lbList[lbI];
+  const item = lbList[lbI];
   const el = $('lbimg');
-  const src = lbSrcFor(g);
+  const src = item ? lbSrcFor(item) : null;
   lbReady = false;
   const zin = el.querySelector('.zin') as HTMLElement | null;
   if (zin) zin.style.transform = '';
@@ -1672,7 +2032,13 @@ document.addEventListener('click', (e: MouseEvent) => {
   if (z && z.dataset.z) {
     e.stopPropagation();
     e.preventDefault();
-    openLb(z.dataset.z, z.closest('.cv') as HTMLElement);
+    if (z.dataset.gallery === '1') {
+      const showcase = z.closest('.gallery-showcase') as HTMLElement | null;
+      const idx = +(showcase?.dataset.activeIdx || 0);
+      openLb(z.dataset.z, (z.closest('.gallery-main') || showcase) as HTMLElement, idx);
+    } else {
+      openLb(z.dataset.z, z.closest('.cv') as HTMLElement);
+    }
   }
 }, true);
 
@@ -1774,7 +2140,7 @@ function applyGamesUpdate(newGames: Game[], newLastT: number) {
     }
   });
 
-  games = mergeNewGames(newGames);
+  games = newGames;
   lastT = newLastT || Date.now();
   render();
   syncDet();
@@ -1870,13 +2236,11 @@ let lastVotesT = 0;
 
 // Initialize
 (async () => {
-  setAdmin(false);
-  observeAdminSession(approved => {
-    adminApproved = approved;
-    setAdmin(approved);
-    buildMenu();
-  });
-  subscribeToCatalogOverrides<Game>(applySharedCatalog);
+  let admStored = false;
+  try {
+    admStored = sessionStorage.getItem('adm') === '1';
+  } catch (e) {}
+  setAdmin(admStored);
 
   // Render initial / cached games immediately so screen is NEVER blank
   if (myV.size > 0 && Object.keys(votes).length === 0) {
@@ -1886,8 +2250,8 @@ let lastVotesT = 0;
   updVoteUI();
   refreshDetVote();
 
-  // Static Cloudflare Worker: Firestore supplies the shared catalog and votes.
-  if (backendAvailable) { await fetchGames(); await fetchVotes(); }
+  await fetchGames();
+  await fetchVotes();
   if (!backendAvailable) {
     syncLocalVotesSummary();
     updVoteUI();
