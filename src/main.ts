@@ -1,5 +1,8 @@
 // Co-Op Web Application - Main Logic
 import { defaultGames, DEFAULT_ADMIN_CONFIG } from './initialData';
+import { extraGames } from './extraGames';
+import steamMedia from './steamMedia.json';
+import steamPrices from './steamPrices.json';
 import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes } from './firebase';
 
 type Game = {
@@ -19,7 +22,20 @@ type Game = {
   screenshots?: string[];
   trailer?: string;
   trailerPoster?: string;
+  storeAppId?: number;
+  priceStatus?: 'steam' | 'free';
+  priceCheckedAt?: string;
 };
+
+type SteamMedia = {
+  header?: string;
+  trailer?: { url: string; poster: string; title: string; format?: 'hls' | 'mp4' } | null;
+  screenshots?: { full: string; thumb: string }[];
+};
+const mediaFeed = steamMedia as Record<string, SteamMedia>;
+const verifiedPriceFeed = steamPrices as Record<string, {
+  price: number; old: number; currency: string; checkedAt: string; free?: boolean
+}>;
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -60,17 +76,65 @@ const INFO: Record<string, [string, string, string]> = {
 const goalOf = (g: Game) => g.goal || (INFO[g.name] ? INFO[g.name][2] : '');
 const playersOf = (g: Game) => g.players || (INFO[g.name] ? INFO[g.name][0] : '');
 
-let backendAvailable = true;
-
+// Static Cloudflare Workers do not serve the former Express API.
+let backendAvailable = false;
+const builtInGames: Game[] = [...defaultGames, ...extraGames] as Game[];
+const knownSteamIds: Record<string, number> = {
+  'Lethal Company': 1966720, 'MIMESIS': 2827200, 'RV There Yet?': 3949040,
+  'BOMBANANA!': 4656000, 'Funnel Runners': 3712080, 'Machine Party': 4108000,
+  'Sons Of The Forest': 1326470, 'Mimic Party': 5053820,
+  'Moo Who?': 4948000, 'Dumb Ways to Build': 4412320
+};
+function safeSteamAsset(value?: string): string {
+  if (!value) return '';
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' &&
+      (u.hostname === 'steamstatic.com' || u.hostname.endsWith('.steamstatic.com')) ? u.toString() : '';
+  } catch { return ''; }
+}
+function enrichSteamGame(g: Game): Game {
+  const id = g.storeAppId || knownSteamIds[g.name];
+  if (!id) return g;
+  const m = mediaFeed[String(id)];
+  const p = verifiedPriceFeed[String(id)];
+  const shots = (m?.screenshots || []).map(x => safeSteamAsset(x.full)).filter(Boolean);
+  const useOfficialCover = !g.img || g.id.startsWith('steam-') ||
+    (g.img.includes('steamstatic.com') && g.img.includes('/header.jpg'));
+  const officialCover = safeSteamAsset(m?.header);
+  const updated: Game = {
+    ...g, storeAppId: id,
+    link: g.link || `https://store.steampowered.com/app/${id}/`,
+    img: useOfficialCover && officialCover ? officialCover : g.img,
+    screenshots: g.screenshots?.length ? g.screenshots : shots,
+    trailer: g.trailer || safeSteamAsset(m?.trailer?.url),
+    trailerPoster: g.trailerPoster || safeSteamAsset(m?.trailer?.poster),
+    priceStatus: g.priceStatus || 'steam'
+  };
+  if (p?.currency === 'SAR' && Number.isFinite(p.price) && p.price >= 0) {
+    return {
+      ...updated, price: p.price, old: Number.isFinite(p.old) ? p.old : p.price,
+      priceCheckedAt: p.checkedAt, priceStatus: p.free ? 'free' : 'steam'
+    };
+  }
+  return updated;
+}
+function combineCatalog(cached: Game[]): Game[] {
+  const ids = new Set(cached.map(g => g.id));
+  const names = new Set(cached.map(g => g.name.toLowerCase().trim()));
+  return [...cached, ...builtInGames.filter(g =>
+    !ids.has(g.id) && !names.has(g.name.toLowerCase().trim())
+  )].map(enrichSteamGame);
+}
 function loadInitialGames(): Game[] {
   try {
     const saved = localStorage.getItem('coop_games');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return combineCatalog(parsed);
     }
   } catch (e) {}
-  return (defaultGames as Game[]) || [];
+  return builtInGames.map(enrichSteamGame);
 }
 
 let games: Game[] = loadInitialGames();
@@ -316,7 +380,7 @@ function buildRel() {
   el.innerHTML = relIds
     .map(id => games.find(x => x.id === id))
     .filter(Boolean)
-    .map(r => r ? `<div class="rc" data-o="${r.id}"><div class="cv">${cover(r)}<button class="zoom" data-z="${r.id}" aria-label="تكبير الصورة">${ZI}</button>${adminMode ? `<button class="redit" data-e="${r.id}">تعديل</button>` : ''}</div><b>${esc(r.name)}</b><span>${(+r.price).toFixed(2)} SR</span></div>` : '')
+    .map(r => r ? `<div class="rc" data-o="${r.id}"><div class="cv">${cover(r)}<button class="zoom" data-z="${r.id}" aria-label="تكبير الصورة">${ZI}</button>${adminMode ? `<button class="redit" data-e="${r.id}">تعديل</button>` : ''}</div><b>${esc(r.name)}</b><span>${priceLabel(r)}</span></div>` : '')
     .join('');
 
   const cv = el.querySelector('.cv') as HTMLElement | null;
@@ -453,7 +517,10 @@ const esc = (s: any) =>
 
 const steam = (g: Game) => g.link || 'https://store.steampowered.com/search/?term=' + encodeURIComponent(g.name);
 const hash = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-const disc = (g: Game) => (g.old > g.price ? Math.round((1 - g.price / g.old) * 100) : 0);
+const priceUnknown = (g: Game) => g.priceStatus === 'steam' && !g.priceCheckedAt;
+const disc = (g: Game) => !priceUnknown(g) && g.old > g.price ? Math.round((1 - g.price / g.old) * 100) : 0;
+const priceLabel = (g: Game) => g.priceStatus === 'free' ? 'مجانية' :
+  priceUnknown(g) ? 'شاهد السعر على Steam' : `${(+g.price).toFixed(2)} SR`;
 
 let toastTimer: any = null;
 function toast(t: string) {
@@ -516,7 +583,7 @@ function render() {
    <button class="heart ${favs.has(g.name) ? 'on' : ''}" data-h="${esc(g.name)}" aria-label="مفضلة">${heart()}</button>
    <button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button><span class="qv">نظرة سريعة</span>
    ${adminMode ? `<div class="adm"><button data-e="${g.id}">✏️ تعديل</button><button class="d" data-d="${g.id}">🗑️ حذف</button></div>` : ''}</div>
-   <div class="meta"><h3>${esc(g.name)}</h3><small>#${g.order || i + 1}${playersOf(g) ? ` · ${esc(playersOf(g))} لاعبين` : ''}</small><div class="pr">${(+g.price).toFixed(2)} SR${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}</div>${voteBtn(g)}</div></div>`;
+   <div class="meta"><h3>${esc(g.name)}</h3><small>#${g.order || i + 1}${playersOf(g) ? ` · ${esc(playersOf(g))} لاعبين` : ''}</small><div class="pr">${priceLabel(g)}${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}</div>${voteBtn(g)}</div></div>`;
 
   if (!a.length) {
     $('grid').innerHTML = `<div class="empty">😴 ما فيه ألعاب مطابقة</div>`;
@@ -620,7 +687,7 @@ window.addEventListener('scroll', () => {
   }
 }, { passive: true });
 
-const prHtml = (g: Game) => `${(+g.price).toFixed(2)} SR${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}`;
+const prHtml = (g: Game) => `${priceLabel(g)}${disc(g) ? `<s>${(+g.old).toFixed(2)} SR</s>` : ''}`;
 
 const luxCornersHTML = () =>
   `<div class="lux-corners" aria-hidden="true"><span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span></div>`;
@@ -793,7 +860,7 @@ function openDet(g: Game, keep?: boolean) {
 
   const leadText = g.desc ? esc(g.desc) : goalOf(g) ? esc(goalOf(g)) : 'تجربة لعب جماعية مميزة مع أصدقائك عبر ستيم.';
   const discountPct = disc(g);
-  const priceHtml = `<span>${(+g.price).toFixed(2)} SR</span>${discountPct ? `<s>${(+g.old).toFixed(2)} SR</s><span class="det-disc-txt">خصم ${discountPct}%</span>` : ''}`;
+  const priceHtml = `<span>${priceLabel(g)}</span>${discountPct ? `<s>${(+g.old).toFixed(2)} SR</s><span class="det-disc-txt">خصم ${discountPct}%</span>` : ''}`;
 
   const coverOnlyCard = `<div class="gallery-showcase lux-card" data-active-idx="0">
     ${luxCornersHTML()}
@@ -1920,7 +1987,7 @@ function openLb(id: string, src?: HTMLElement, galleryIdx?: number) {
       .map(g => ({
         id: g.id,
         name: g.name,
-        sub: `${(+g.price).toFixed(2)} SR${disc(g) ? ` · -${disc(g)}%` : ''}`,
+        sub: `${priceLabel(g)}${disc(g) ? ` · -${disc(g)}%` : ''}`,
         img: g.img,
         ar: arOf(g)
       }));
