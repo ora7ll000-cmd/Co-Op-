@@ -109,6 +109,22 @@ function notifyClients(type: string, data: any) {
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 
+// Legacy Express endpoints are not part of the Cloudflare deployment.
+// Disable unsafe unauthenticated mutations if this server is run elsewhere.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/admin')) {
+    res.status(410).json({ error: 'تسجيل الإدارة انتقل إلى Firebase Auth' });
+    return;
+  }
+  const unsafeGameMutation = req.path.startsWith('/api/games') && !['GET', 'HEAD'].includes(req.method);
+  const unsafeReset = req.path === '/api/votes/reset';
+  if (unsafeGameMutation || unsafeReset) {
+    res.status(403).json({ error: 'يجب تعديل البيانات عبر Firebase بصلاحية مشرف' });
+    return;
+  }
+  next();
+});
+
 // Version check endpoint for ultra-lightweight instant background sync
 app.get('/api/version', (req, res) => {
   res.json({ lastUpdated, votesVersion });
