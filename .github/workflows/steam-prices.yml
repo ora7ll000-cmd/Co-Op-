@@ -1,12 +1,14 @@
-name: Refresh Saudi Steam prices
+name: Refresh Saudi Steam prices and media
 on:
   schedule:
     - cron: "15 6 * * 1"
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feature/steam-trailers-coop-catalog-2026]
     paths:
       - '.github/workflows/steam-prices.yml'
+      - 'scripts/update-steam-prices.mjs'
+      - 'src/extraGames.ts'
 permissions:
   contents: write
 jobs:
@@ -17,14 +19,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Check official Steam prices (SAR)
+      - name: Check official Saudi prices and game trailers
         run: node scripts/update-steam-prices.mjs
       - name: Commit validated price changes
         run: |
-          if ! git diff --quiet -- src/steamPrices.json; then
+          if ! git diff --quiet -- src/steamPrices.json src/steamMedia.json; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add src/steamPrices.json
-            git commit -m "chore: update verified Saudi Steam prices"
+            git add src/steamPrices.json src/steamMedia.json
+            git commit -m "chore: sync verified Saudi prices and official Steam media"
             git push
           fi
