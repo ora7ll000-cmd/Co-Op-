@@ -10,7 +10,7 @@ const ids = [
   477160, 1599600, 1016920, 386940, 1641700, 1260320, 1621690, 1211020, 648800, 690640,
   905340, 1004490, 1011670,
   // Free titles reviewed for non-holiday core gameplay and 3+ player capability.
-  1404870, 1969130, 565640, 848230, 1598560, 858960, 2187320, 1306180, 11020, 705210, 1536610
+  1404870, 1969130, 565640, 848230, 1598560, 858960, 2187320, 1306180, 11020, 705210
 ];
 const pricesFile = path.join(process.cwd(), 'src', 'steamPrices.json');
 const mediaFile = path.join(process.cwd(), 'src', 'steamMedia.json');
