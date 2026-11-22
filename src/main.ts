@@ -2,6 +2,7 @@
 import { defaultGames } from './initialData';
 import { extraGames } from './extraGames';
 import steamPrices from './steamPrices.json';
+import steamMedia from './steamMedia.json';
 import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes,
   auth, loginApprovedAdmin, observeAdminSession, logoutAdmin,
   subscribeToCatalogOverrides, publishCatalogGame, removeCatalogGame
@@ -25,6 +26,22 @@ type Game = {
   priceStatus?: 'steam' | 'free';
   priceCheckedAt?: string;
 };
+
+type SteamMedia = {
+  header?: string;
+  trailer?: { url: string; poster: string; title: string; format?: 'mp4' | 'hls' } | null;
+  screenshots?: { full: string; thumb: string }[];
+  updatedAt?: string;
+};
+const steamMediaFeed = steamMedia as Record<string, SteamMedia>;
+const steamMediaUrl = (value: string | undefined): string => {
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && (url.hostname === 'steamstatic.com' || url.hostname.endsWith('.steamstatic.com')) ? url.href : '';
+  } catch { return ''; }
+};
+const mediaOf = (g: Game) => g.storeAppId ? steamMediaFeed[String(g.storeAppId)] : undefined;
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -81,11 +98,11 @@ const steamPriceFeed = steamPrices as Record<string, { price: number; old: numbe
 function withSaudiStorePrice(g: Game): Game {
   const steamId = g.storeAppId || existingSteamGames[g.name];
   if (!steamId) return g;
+  const officialMediaCover = steamMediaUrl(steamMediaFeed[String(steamId)]?.header);
   const correctedPeakImage = extraGames.find(item => item.storeAppId === 3527290)?.img;
-  const needsPeakImageFix = steamId === 3527290 &&
-    (!g.img || g.img.includes('/3527290/header.jpg'));
+  const needsPeakImageFix = steamId === 3527290 && (!g.img || g.img.includes('/3527290/header.jpg'));
   const linked: Game = { ...g, storeAppId: steamId, priceStatus: g.priceStatus || 'steam',
-    img: needsPeakImageFix && correctedPeakImage ? correctedPeakImage : g.img,
+    img: officialMediaCover || (needsPeakImageFix && correctedPeakImage ? correctedPeakImage : g.img),
     link: g.link || `https://store.steampowered.com/app/${steamId}/` };
   const verified = steamPriceFeed[String(steamId)];
   if (verified?.currency === 'SAR' && Number.isFinite(verified.price) && verified.price >= 0) {
@@ -654,6 +671,23 @@ window.addEventListener('scroll', () => {
   }
 }, { passive: true });
 
+let activeSteamHls: any = null;
+let steamHlsLoad: Promise<any> | null = null;
+function loadSteamHlsPlayer(): Promise<any> {
+  const existing = (window as any).Hls;
+  if (existing) return Promise.resolve(existing);
+  if (steamHlsLoad) return steamHlsLoad;
+  steamHlsLoad = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+    script.async = true;
+    script.onload = () => (window as any).Hls ? resolve((window as any).Hls) : reject(new Error('HLS player unavailable'));
+    script.onerror = () => reject(new Error('Unable to load HLS player'));
+    document.head.appendChild(script);
+  }).catch(error => { steamHlsLoad = null; throw error; });
+  return steamHlsLoad;
+}
+
 const prHtml = (g: Game) => `${priceLabel(g)}${originalPriceLabel(g)}`;
 
 function openDet(g: Game, keep?: boolean) {
@@ -667,11 +701,33 @@ function openDet(g: Game, keep?: boolean) {
   const url = esc(steam(g));
 
   const goalBox = `<div class="blk"><h4>🎯 هدف اللعبة</h4><p>${goalOf(g) ? esc(goalOf(g)) : 'ما أضيف هدف لهذي اللعبة بعد.'}</p></div>`;
+  const gameMedia = mediaOf(g);
+  const safeTrailer = steamMediaUrl(gameMedia?.trailer?.url);
+  const safePoster = steamMediaUrl(gameMedia?.trailer?.poster);
+  const screenshots = (gameMedia?.screenshots || []).map(s => ({
+    full: steamMediaUrl(s.full), thumb: steamMediaUrl(s.thumb)
+  })).filter(s => s.full).slice(0, 8);
+  const trailerKind = gameMedia?.trailer?.format === 'hls' || safeTrailer.includes('.m3u8') ? 'hls' : 'mp4';
+  const trailerSection = safeTrailer ? `<div class="steam-gallery-section">
+    <h4>🎬 التريلر الرسمي من Steam</h4>
+    <video class="steam-trailer" controls playsinline preload="none" ${safePoster ? `poster="${safePoster}"` : ''}>
+      متصفحك لا يدعم تشغيل الفيديو.
+    </video>
+    <a class="steam-trailer-fallback" href="${url}" target="_blank" rel="noopener" style="display:none">شاهد الفيديو على Steam</a>
+  </div>` : '';
+  const shotsSection = screenshots.length ? `<div class="steam-gallery-section">
+    <h4>📸 لقطات من اللعبة</h4>
+    <div class="steam-preview-box"><img class="steam-preview" src="${screenshots[0].full}" alt="لقطات ${esc(g.name)}" loading="lazy"></div>
+    <div class="steam-shot-list" aria-label="لقطات من Steam">
+      ${screenshots.map((shot, i) => `<button class="steam-shot ${i === 0 ? 'active' : ''}" data-steam-shot="${i}" aria-label="عرض لقطة ${i + 1}"><img src="${shot.thumb || shot.full}" alt="لقطة ${i + 1}" loading="lazy"></button>`).join('')}
+    </div>
+  </div>` : '';
+  const steamGallery = trailerSection || shotsSection ? `<section class="steam-media"><h3>شاهد اللعبة</h3>${trailerSection}${shotsSection}<p class="steam-media-source">المقاطع والصور مأخوذة من صفحة اللعبة الرسمية على Steam.</p></section>` : '';
   const quick = adminMode
     ? `<div class="steam qe"><h4>تعديل سريع</h4><div class="row"><div><label>السعر</label><input id="qp" type="number" step="0.01" value="${g.price}"></div><div><label>قبل الخصم</label><input id="qo" type="number" step="0.01" value="${g.old || ''}"></div></div><label>عدد اللاعبين</label><input id="qpl" value="${esc(playersOf(g))}"><label>هدف اللعبة</label><textarea id="qg" rows="3">${esc(goalOf(g))}</textarea><button class="btn" id="qs" style="margin-top:14px;width:100%">حفظ التعديلات</button></div>`
     : '';
 
-  $('dg').innerHTML = `<div class="dl"><div class="cv" style="aspect-ratio:${arOf(g)}">${cover(g)}<button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button>${disc(g) ? `<span class="sale">-${disc(g)}%</span>` : ''}</div>${goalBox}${quick}</div>
+  $('dg').innerHTML = `<div class="dl"><div class="cv" style="aspect-ratio:${arOf(g)}">${cover(g)}<button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button>${disc(g) ? `<span class="sale">-${disc(g)}%</span>` : ''}</div>${goalBox}${quick}${steamGallery}</div>
   <div class="dt"><small>لعبة جماعية · CO-OP</small><h2>${esc(g.name)}</h2>
   ${adminMode ? `<div class="abx"><button class="sbtn" id="de">تعديل اللعبة</button><button class="sbtn" id="dc">تكرار</button><button class="sbtn del" id="dd">حذف</button></div>` : ''}
   <div class="pr">${prHtml(g)}</div>
@@ -688,6 +744,41 @@ function openDet(g: Game, keep?: boolean) {
   </a></div>`;
 
   $('dg').querySelectorAll('.dt,.dl').forEach(c => [...c.children].forEach((x, i) => (x as HTMLElement).style.setProperty('--i', String(i))));
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
+  const trailerPlayer = $('dg').querySelector<HTMLVideoElement>('.steam-trailer');
+  if (trailerPlayer && safeTrailer) {
+    const fallback = $('dg').querySelector<HTMLAnchorElement>('.steam-trailer-fallback');
+    const showTrailerFallback = () => { if (fallback) fallback.style.display = 'block'; };
+    trailerPlayer.addEventListener('error', showTrailerFallback);
+    if (trailerKind === 'mp4' || trailerPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+      trailerPlayer.src = safeTrailer;
+    } else {
+      void loadSteamHlsPlayer().then(Hls => {
+        if (!Hls?.isSupported() || !$('dg').contains(trailerPlayer)) {
+          showTrailerFallback(); return;
+        }
+        const instance = new Hls({ enableWorker: true, maxBufferLength: 30 });
+        activeSteamHls = instance;
+        instance.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean }) => {
+          if (data.fatal) { showTrailerFallback(); instance.destroy(); if (activeSteamHls === instance) activeSteamHls = null; }
+        });
+        instance.loadSource(safeTrailer);
+        instance.attachMedia(trailerPlayer);
+      }).catch(() => showTrailerFallback());
+    }
+  }
+  const steamMediaElement = $('dg').querySelector('.steam-media') as HTMLElement | null;
+  if (steamMediaElement && screenshots.length) {
+    steamMediaElement.querySelectorAll<HTMLButtonElement>('[data-steam-shot]').forEach(button => {
+      button.onclick = () => {
+        const selected = screenshots[Number(button.dataset.steamShot)];
+        if (!selected) return;
+        const preview = steamMediaElement.querySelector<HTMLImageElement>('.steam-preview');
+        if (preview) preview.src = selected.full;
+        steamMediaElement.querySelectorAll('[data-steam-shot]').forEach(b => b.classList.toggle('active', b === button));
+      };
+    });
+  }
   $('dx').innerHTML = `<div class="sec"><div class="sh"><h3>ألعاب أخرى قد تعجبك</h3><div class="sizes" id="sizes2"></div></div><div class="relw" id="relw"><button class="rarr rl" id="rnl" aria-label="التالي"><svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg></button><div class="rel" id="rel"></div><button class="rarr rr" id="rpr" aria-label="السابق"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button></div></div>`;
   
   buildRel();
@@ -781,6 +872,9 @@ $('dx').onclick = (e: MouseEvent) => {
 };
 
 const closeDet = () => {
+  const trailer = $('dg').querySelector<HTMLVideoElement>('.steam-trailer');
+  if (trailer) trailer.pause();
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
   $('det').classList.remove('on');
   document.body.style.overflow = '';
 };
@@ -896,8 +990,10 @@ function importGamesJson() {
 async function fillAdminBox() {
   const bx = $('admb');
   if (!bx) return;
-  bx.innerHTML = `<button class="btn" id="mkey" style="width:100%;padding:12px">
-    تسجيل دخول المشرف بحساب Google
+  bx.innerHTML = `<button type="button" id="mkey" class="admin-google-btn">
+    <span class="admin-google-icon" aria-hidden="true">G</span>
+    <span>تسجيل الدخول بحساب Google</span>
+    <span class="admin-google-arrow" aria-hidden="true">←</span>
   </button>`;
   $('mkey').onclick = adminLogin;
 }
