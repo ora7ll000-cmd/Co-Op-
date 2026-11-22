@@ -709,8 +709,7 @@ function openDet(g: Game, keep?: boolean) {
     ? `<div class="steam qe"><h4>تعديل سريع</h4><div class="row"><div><label>السعر</label><input id="qp" type="number" step="0.01" value="${g.price}"></div><div><label>قبل الخصم</label><input id="qo" type="number" step="0.01" value="${g.old || ''}"></div></div><label>عدد اللاعبين</label><input id="qpl" value="${esc(playersOf(g))}"><label>هدف اللعبة</label><textarea id="qg" rows="3">${esc(goalOf(g))}</textarea><button class="btn" id="qs" style="margin-top:14px;width:100%">حفظ التعديلات</button></div>`
     : '';
 
-  $('dg').innerHTML = `<div class="dl"><div class="cv" style="aspect-ratio:${arOf(g)}">${cover(g)}<button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button>${disc(g) ? `<span class="sale">-${disc(g)}%</span>` : ''}</div>${goalBox}${quick}</div>
-${steamGallery}
+  $('dg').innerHTML = `<div class="dl"><div class="cv" style="aspect-ratio:${arOf(g)}">${cover(g)}<button class="zoom" data-z="${g.id}" aria-label="تكبير الصورة">${ZI}</button>${disc(g) ? `<span class="sale">-${disc(g)}%</span>` : ''}</div>${goalBox}${quick}${steamGallery}</div>
   <div class="dt"><small>لعبة جماعية · CO-OP</small><h2>${esc(g.name)}</h2>
   ${adminMode ? `<div class="abx"><button class="sbtn" id="de">تعديل اللعبة</button><button class="sbtn" id="dc">تكرار</button><button class="sbtn del" id="dd">حذف</button></div>` : ''}
   <div class="pr">${prHtml(g)}</div>
