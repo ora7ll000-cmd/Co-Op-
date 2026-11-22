@@ -1520,7 +1520,7 @@ $('f').onsubmit = async (e: Event) => {
 async function seed() {
   if (games.length && !(await askC('هل تريد إعادة تحميل القائمة الافتراضية؟'))) return;
   drawer(false);
-  saveGamesToLocal([...(defaultGames as Game[])]);
+  saveGamesToLocal(builtInGames.map(enrichSteamGame));
   if (backendAvailable) {
     commit(async () => {
       const res = await fetch('/api/games/seed', {
