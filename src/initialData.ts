@@ -16,8 +16,8 @@ export type InitialGame = {
 };
 
 export const DEFAULT_ADMIN_CONFIG = {
-  "salt": "e8455117c10f8daa",
-  "hash": "8b679776a6ee44f2ae49c49480fd96906b989f286b651a4be6cdda6a5643e392"
+  "salt": "b147683827ba8dbf",
+  "hash": "feb0e27703ae07a95aeccea6323d96a8a4de8cda8d31ea2f1342cffc8b304d18"
 };
 
 export const defaultGames: InitialGame[] = [

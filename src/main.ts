@@ -91,13 +91,13 @@ function saveGamesToLocal(newGames: Game[]) {
 
 async function clientCheckPassword(pass: string): Promise<boolean> {
   try {
-    let salt = DEFAULT_ADMIN_CONFIG.salt || 'e8455117c10f8daa';
-    let targetHash = DEFAULT_ADMIN_CONFIG.hash || '8b679776a6ee44f2ae49c49480fd96906b989f286b651a4be6cdda6a5643e392';
+    let salt = DEFAULT_ADMIN_CONFIG.salt || 'b147683827ba8dbf';
+    let targetHash = DEFAULT_ADMIN_CONFIG.hash || 'feb0e27703ae07a95aeccea6323d96a8a4de8cda8d31ea2f1342cffc8b304d18';
     const customCfg = localStorage.getItem('coop_admin_cfg');
     if (customCfg) {
       try {
         const parsed = JSON.parse(customCfg);
-        if (parsed.salt && parsed.hash) {
+        if (parsed.salt && parsed.hash && parsed.baseHash === DEFAULT_ADMIN_CONFIG.hash) {
           salt = parsed.salt;
           targetHash = parsed.hash;
         }
@@ -120,7 +120,11 @@ async function clientSetPassword(password: string): Promise<boolean> {
     const hashBuf = await crypto.subtle.digest('SHA-256', buf);
     const hash = Array.from(new Uint8Array(hashBuf))
       .map(b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem('coop_admin_cfg', JSON.stringify({ salt, hash }));
+    localStorage.setItem('coop_admin_cfg', JSON.stringify({
+      salt,
+      hash,
+      baseHash: DEFAULT_ADMIN_CONFIG.hash
+    }));
     return true;
   } catch (e) {
     return false;
