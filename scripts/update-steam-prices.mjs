@@ -26,6 +26,15 @@ function steamAsset(url) {
     return u.toString();
   } catch { return ''; }
 }
+function steamVideo(url) {
+  if (typeof url !== 'string') return '';
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' || !(u.hostname === 'steamstatic.com' || u.hostname.endsWith('.steamstatic.com'))) return '';
+    if (!/\\.(m3u8|mp4)$/i.test(u.pathname)) return '';
+    return u.toString();
+  } catch { return ''; }
+}
 for (const id of ids) {
   try {
     const url = new URL('https://store.steampowered.com/api/appdetails');
@@ -68,9 +77,10 @@ for (const id of ids) {
       : [];
     const videos = Array.isArray(game.movies)
       ? game.movies.map(m => ({
-          url: steamAsset(m.mp4?.max || m.mp4?.['480']),
+          url: steamVideo(m.mp4?.max || m.mp4?.['480'] || m.hls_h264 || m.hls),
           poster: steamAsset(m.thumbnail),
-          title: typeof m.name === 'string' ? m.name.slice(0, 100) : 'Official Steam Trailer'
+          title: typeof m.name === 'string' ? m.name.slice(0, 100) : 'Official Steam Trailer',
+          format: (m.mp4?.max || m.mp4?.['480']) ? 'mp4' : 'hls'
         })).filter(m => m.url)
       : [];
     if (header || screenshots.length || videos.length) {
