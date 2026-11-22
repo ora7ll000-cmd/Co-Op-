@@ -4,7 +4,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const ids = [1966720, 1326470, 3527290, 2644470, 2709570, 3241660, 728880, 2567870, 2881650];
+const ids = [1966720, 2827200, 3949040, 4656000, 3712080, 4108000, 1326470, 5053820, 4948000, 4412320, 3527290, 2644470, 2709570, 3241660, 728880, 2567870, 2881650];
 const file = path.join(process.cwd(), "src", "steamPrices.json");
 const existing = JSON.parse(await fs.readFile(file, "utf8").catch(() => "{}"));
 const result = { ...existing };
