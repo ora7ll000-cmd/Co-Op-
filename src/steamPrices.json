@@ -1,1 +1,105 @@
-{}
+{
+  "728880": {
+    "price": 39.95,
+    "old": 39.95,
+    "checkedAt": "2026-11-22T08:07:40.652Z",
+    "currency": "SAR"
+  },
+  "1326470": {
+    "price": 61.49,
+    "old": 61.49,
+    "checkedAt": "2026-11-22T08:07:39.360Z",
+    "currency": "SAR"
+  },
+  "1966720": {
+    "price": 22.49,
+    "old": 22.49,
+    "checkedAt": "2026-11-22T08:07:38.621Z",
+    "currency": "SAR"
+  },
+  "2567870": {
+    "price": 11.95,
+    "old": 11.95,
+    "checkedAt": "2026-11-22T08:07:40.816Z",
+    "currency": "SAR"
+  },
+  "2644470": {
+    "price": 15.05,
+    "old": 21.5,
+    "checkedAt": "2026-11-22T08:07:40.182Z",
+    "currency": "SAR"
+  },
+  "2709570": {
+    "price": 0,
+    "old": 0,
+    "checkedAt": "2026-11-22T08:07:40.319Z",
+    "currency": "SAR",
+    "free": true
+  },
+  "2827200": {
+    "price": 22.49,
+    "old": 22.49,
+    "checkedAt": "2026-11-22T08:07:38.733Z",
+    "currency": "SAR"
+  },
+  "2881650": {
+    "price": 11.77,
+    "old": 18.99,
+    "checkedAt": "2026-11-22T08:07:40.946Z",
+    "currency": "SAR"
+  },
+  "3241660": {
+    "price": 23.49,
+    "old": 23.49,
+    "checkedAt": "2026-11-22T08:07:40.517Z",
+    "currency": "SAR"
+  },
+  "3527290": {
+    "price": 19.99,
+    "old": 19.99,
+    "checkedAt": "2026-11-22T08:07:40.026Z",
+    "currency": "SAR"
+  },
+  "3712080": {
+    "price": 29.49,
+    "old": 29.49,
+    "checkedAt": "2026-11-22T08:07:39.111Z",
+    "currency": "SAR"
+  },
+  "3949040": {
+    "price": 18.5,
+    "old": 18.5,
+    "checkedAt": "2026-11-22T08:07:38.859Z",
+    "currency": "SAR"
+  },
+  "4108000": {
+    "price": 28.99,
+    "old": 28.99,
+    "checkedAt": "2026-11-22T08:07:39.228Z",
+    "currency": "SAR"
+  },
+  "4412320": {
+    "price": 19.35,
+    "old": 19.35,
+    "checkedAt": "2026-11-22T08:07:39.885Z",
+    "currency": "SAR"
+  },
+  "4656000": {
+    "price": 20.99,
+    "old": 20.99,
+    "checkedAt": "2026-11-22T08:07:38.970Z",
+    "currency": "SAR"
+  },
+  "4948000": {
+    "price": 18.75,
+    "old": 18.75,
+    "checkedAt": "2026-11-22T08:07:39.705Z",
+    "currency": "SAR"
+  },
+  "5053820": {
+    "price": 18.75,
+    "old": 18.75,
+    "checkedAt": "2026-11-22T08:07:39.525Z",
+    "currency": "SAR"
+  }
+}
