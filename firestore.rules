@@ -19,6 +19,29 @@ service cloud.firestore {
              (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
+    // Admin grants can only be created/removed from the Firebase Console or Admin SDK.
+    // A visitor cannot promote their own account.
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /admins/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    match /catalogOverrides/{gameId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() &&
+        isValidId(gameId) &&
+        (request.resource == null || (
+          request.resource.data.keys().hasOnly(['deleted', 'game', 'updatedAt']) &&
+          request.resource.data.deleted is bool
+        ));
+    }
+
     // Public community co-op votes collection
     match /votes/{voteUid} {
       allow read: if true;
