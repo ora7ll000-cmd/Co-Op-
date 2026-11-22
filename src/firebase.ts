@@ -11,6 +11,7 @@ import {
   writeBatch,
   getDocs
 } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -119,4 +120,43 @@ export async function resetAllFirebaseVotes(): Promise<boolean> {
     console.error('Failed to reset votes in Firebase:', err);
     return false;
   }
+}
+
+// Cloudflare static hosting: admin authentication uses Firebase Auth, not a client password hash.
+export const auth = getAuth(app);
+export async function isApprovedAdmin(user: { uid: string } | null | undefined): Promise<boolean> {
+  if (!user) return false;
+  try {
+    const docSnap = await getDocFromServer(doc(db, 'admins', user.uid));
+    return docSnap.exists() && docSnap.data()?.role === 'admin';
+  } catch (error) {
+    console.warn('Admin permissions could not be confirmed', error);
+    return false;
+  }
+}
+export async function loginApprovedAdmin(): Promise<boolean> {
+  const result = await signInWithPopup(auth, new GoogleAuthProvider());
+  return isApprovedAdmin(result.user);
+}
+export function observeAdminSession(callback: (approved: boolean) => void) {
+  return onAuthStateChanged(auth, async user => callback(await isApprovedAdmin(user)));
+}
+export function logoutAdmin() { return signOut(auth); }
+
+export type CatalogOverride<T> = { id: string; deleted?: boolean; game?: T };
+export function subscribeToCatalogOverrides<T>(callback: (items: CatalogOverride<T>[]) => void) {
+  return onSnapshot(collection(db, 'catalogOverrides'), snap => {
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as CatalogOverride<T>));
+    callback(items);
+  }, err => console.error('Catalog sync unavailable', err));
+}
+export async function publishCatalogGame<T extends { id: string }>(game: T) {
+  if (!await isApprovedAdmin(auth.currentUser)) throw new Error('صلاحية المشرف غير مفعّلة');
+  await setDoc(doc(db, 'catalogOverrides', game.id), {
+    deleted: false, game, updatedAt: new Date().toISOString()
+  });
+}
+export async function removeCatalogGame(id: string) {
+  if (!await isApprovedAdmin(auth.currentUser)) throw new Error('صلاحية المشرف غير مفعّلة');
+  await setDoc(doc(db, 'catalogOverrides', id), { deleted: true, updatedAt: new Date().toISOString() });
 }
