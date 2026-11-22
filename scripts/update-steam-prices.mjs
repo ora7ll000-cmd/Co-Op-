@@ -49,6 +49,7 @@ for (const id of ids) {
     const item = (await response.json())?.[String(id)];
     if (!item?.success || !item.data) throw new Error('No public Steam details');
     const game = item.data;
+    if (id === 3527290) console.log('PEAK_DEBUG_MOVIES ' + JSON.stringify({ length: game.movies?.length, first: game.movies?.[0] }).slice(0, 2200));
     if (game.type !== 'game') throw new Error('Not a full game');
     const checkedAt = new Date().toISOString();
 
