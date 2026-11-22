@@ -98,8 +98,5 @@ export const extraGames = [
     link:"https://store.steampowered.com/app/11020/", img:"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/11020/header.jpg", ar:2.14, storeAppId:11020, priceStatus:"free" },
   { id:"steam-705210", name:"Cube Racer", price:0, old:0, order:40, players:"3+",
     goal:"تسابقوا بالمكعبات على المسار نفسه وتجاوزوا العقبات للوصول أولًا.", desc:"سباق مكعبات جماعي مجاني بجولات قصيرة وتحديات خفيفة.",
-    link:"https://store.steampowered.com/app/705210/", img:"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/705210/header.jpg", ar:2.14, storeAppId:705210, priceStatus:"free" },
-  { id:"steam-1536610", name:"OpenTTD", price:0, old:0, order:41, players:"3+",
-    goal:"ابنوا شبكات القطارات والطرق والمطارات وطوروا شركات النقل معًا.", desc:"لعبة إدارة ونقل جماعية مجانية عبر الإنترنت، مناسبة للجلسات الهادئة.",
-    link:"https://store.steampowered.com/app/1536610/", img:"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1536610/header.jpg", ar:2.14, storeAppId:1536610, priceStatus:"free" }
+    link:"https://store.steampowered.com/app/705210/", img:"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/705210/header.jpg", ar:2.14, storeAppId:705210, priceStatus:"free" }
 ] as const;
