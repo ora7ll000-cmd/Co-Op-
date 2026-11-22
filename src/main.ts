@@ -961,7 +961,7 @@ function openDet(g: Game, keep?: boolean) {
       const box = $('dtrailer');
       if (!box) return;
       const playbackUrl = trailerInfo.src;
-      const isHls = trailerInfo.type === 'video' && /\\.m3u8(?:[?#]|$)/i.test(playbackUrl);
+      const isHls = trailerInfo.type === 'video' && /\.m3u8(?:[?#]|$)/i.test(playbackUrl);
       const playMarkup = trailerInfo.type === 'youtube'
         ? `<iframe class="trailer-player" src="${esc(playbackUrl)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
         : `<video class="trailer-player" ${posterSrc ? `poster="${posterSrc}"` : ''} controls autoplay playsinline></video>`;
