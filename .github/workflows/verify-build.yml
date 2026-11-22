@@ -18,3 +18,4 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: node --check scripts/update-steam-prices.mjs
+      - run: npx --yes wrangler@4 deploy --dry-run
