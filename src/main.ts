@@ -708,7 +708,7 @@ function openDet(g: Game, keep?: boolean) {
     full: steamMediaUrl(s.full), thumb: steamMediaUrl(s.thumb)
   })).filter(s => s.full).slice(0, 8);
   const trailerKind = gameMedia?.trailer?.format === 'hls' || safeTrailer.includes('.m3u8') ? 'hls' : 'mp4';
-  const trailerSection = safeTrailer ? `<div class="steam-gallery-section">`
+  const trailerSection = safeTrailer ? `<div class="steam-gallery-section">
     <h4>🎬 التريلر الرسمي من Steam</h4>
     <video class="steam-trailer" controls playsinline preload="none" ${safePoster ? `poster="${safePoster}"` : ''}>
       متصفحك لا يدعم تشغيل الفيديو.
