@@ -709,6 +709,27 @@ function getGalleryImages(g: Game): string[] {
   return out;
 }
 
+let activeSteamHls: any = null;
+let steamHlsLoad: Promise<any> | null = null;
+function disposeSteamTrailer() {
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
+  document.querySelectorAll<HTMLVideoElement>('.trailer-player').forEach(video => video.pause());
+}
+function loadSteamHls(): Promise<any> {
+  if ((window as any).Hls) return Promise.resolve((window as any).Hls);
+  if (steamHlsLoad) return steamHlsLoad;
+  steamHlsLoad = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+    script.async = true;
+    script.onload = () => (window as any).Hls
+      ? resolve((window as any).Hls) : reject(new Error('HLS script not initialized'));
+    script.onerror = () => reject(new Error('HLS script failed to load'));
+    document.head.appendChild(script);
+  }).catch(e => { steamHlsLoad = null; throw e; });
+  return steamHlsLoad;
+}
+
 function parseTrailerEmbed(url?: string): { type: 'youtube' | 'video'; src: string } | null {
   const raw = (url || '').trim();
   if (!raw) return null;
@@ -831,6 +852,7 @@ function wireGalleryWidget(container: HTMLElement | null, g: Game, imgs: string[
 
 function openDet(g: Game, keep?: boolean) {
   if (!g) return;
+  disposeSteamTrailer();
   curId = g.id;
   const detEl = $('det');
   detEl.classList.toggle('nr', !!keep);
@@ -938,11 +960,34 @@ function openDet(g: Game, keep?: boolean) {
     const startTrailer = () => {
       const box = $('dtrailer');
       if (!box) return;
-      const playMarkup =
-        trailerInfo.type === 'youtube'
-          ? `<iframe class="trailer-player" src="${esc(trailerInfo.src)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-          : `<video class="trailer-player" src="${esc(trailerInfo.src)}" ${posterSrc ? `poster="${posterSrc}"` : ''} controls autoplay playsinline></video>`;
-      box.innerHTML = `${luxCornersHTML()}${playMarkup}`;
+      const playbackUrl = trailerInfo.src;
+      const isHls = trailerInfo.type === 'video' && /\\.m3u8(?:[?#]|$)/i.test(playbackUrl);
+      const playMarkup = trailerInfo.type === 'youtube'
+        ? `<iframe class="trailer-player" src="${esc(playbackUrl)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+        : `<video class="trailer-player" ${posterSrc ? `poster="${posterSrc}"` : ''} controls autoplay playsinline></video>`;
+      box.innerHTML = `${luxCornersHTML()}${playMarkup}<a class="trailer-fallback-link" href="${url}" target="_blank" rel="noopener" style="display:none">شاهد التريلر في Steam</a>`;
+      if (trailerInfo.type === 'youtube') return;
+      const video = box.querySelector<HTMLVideoElement>('video');
+      if (!video) return;
+      const fallback = box.querySelector<HTMLElement>('.trailer-fallback-link');
+      const error = () => { if (fallback) fallback.style.display = 'block'; };
+      video.addEventListener('error', error);
+      if (!isHls || video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playbackUrl;
+        void video.play().catch(() => {});
+        return;
+      }
+      void loadSteamHls().then(Hls => {
+        if (!Hls.isSupported() || !document.body.contains(video)) { error(); return; }
+        const player = new Hls({ enableWorker: true, maxBufferLength: 30 });
+        activeSteamHls = player;
+        player.on(Hls.Events.ERROR, (_ev: unknown, data: { fatal?: boolean }) => {
+          if (data.fatal) { error(); player.destroy(); if (activeSteamHls === player) activeSteamHls = null; }
+        });
+        player.on(Hls.Events.MANIFEST_PARSED, () => { void video.play().catch(() => {}); });
+        player.loadSource(playbackUrl);
+        player.attachMedia(video);
+      }).catch(error);
     };
     const tBtn = $('dtrailerBtn');
     if (tBtn) {
@@ -1106,6 +1151,7 @@ $('dx').onclick = (e: MouseEvent) => {
 };
 
 const closeDet = () => {
+  disposeSteamTrailer();
   $('det').classList.remove('on');
   if ($('dmedia')) $('dmedia').innerHTML = '';
   document.body.style.overflow = '';
