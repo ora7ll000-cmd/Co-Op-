@@ -4,7 +4,7 @@ on:
     - cron: "15 6 * * 1"
   workflow_dispatch:
   push:
-    branches: [main, feature/add-free-friendly-coop-2026]
+    branches: [main]
     paths:
       - '.github/workflows/steam-prices.yml'
       - 'scripts/update-steam-prices.mjs'
