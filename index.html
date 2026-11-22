@@ -78,6 +78,8 @@
       </button>
     </div>
     <div class="dg" id="dg"></div>
+    <div id="dmedia"></div>
+    <div id="dinfo"></div>
     <div id="dx"></div>
   </div>
 
@@ -142,6 +144,13 @@
       </div>
       <label>رابط ستيم (اختياري)</label><input id="fl" dir="ltr" placeholder="https://store.steampowered.com/app/...">
       <label>هدف اللعبة</label><textarea id="fg" rows="2" maxlength="300" placeholder="وش المطلوب من اللاعبين؟"></textarea>
+      <label>رابط العرض الدعائي / التريلر (اختياري - YouTube أو MP4)</label><input id="ftr" dir="ltr" placeholder="https://www.youtube.com/watch?v=... أو رابط فيديو مباشر">
+      <label>صورة معاينة التريلر (اختياري)</label><input id="fpo" dir="ltr" placeholder="https://... (يستخدم الغلاف تلقائياً إن تُرك فارغاً)">
+      <label>لقطات الشاشة (كل رابط في سطر - اختياري)</label><textarea id="fss" dir="ltr" rows="3" placeholder="https://.../screenshot1.jpg&#10;https://.../screenshot2.jpg"></textarea>
+      <div class="ss-add-row">
+        <button type="button" class="btn out ss-upload-btn" id="fssBtn">+ رفع لقطات شاشة من جهازك</button>
+        <input id="fssi" type="file" accept="image/*" multiple hidden>
+      </div>
       <label>صورة الغلاف</label>
       <div class="pz" id="pz"></div>
       <input id="fi" type="file" accept="image/*" hidden>

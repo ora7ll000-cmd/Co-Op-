@@ -13,6 +13,9 @@ export type InitialGame = {
   goal: string;
   sp?: number | string;
   sc?: number;
+  screenshots?: string[];
+  trailer?: string;
+  trailerPoster?: string;
 };
 
 export const DEFAULT_ADMIN_CONFIG = {
