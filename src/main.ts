@@ -1,9 +1,12 @@
 // Co-Op Web Application - Main Logic
-import { defaultGames, DEFAULT_ADMIN_CONFIG } from './initialData';
+import { defaultGames } from './initialData';
 import { extraGames } from './extraGames';
 import steamMedia from './steamMedia.json';
 import steamPrices from './steamPrices.json';
-import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes } from './firebase';
+import { subscribeToAllVotes, syncUserVoteToFirebase, resetAllFirebaseVotes,
+  loginApprovedAdmin, observeAdminSession, logoutAdmin,
+  subscribeToCatalogOverrides, publishCatalogGame, removeCatalogGame
+} from './firebase';
 
 type Game = {
   id: string;
@@ -140,62 +143,46 @@ function loadInitialGames(): Game[] {
 let games: Game[] = loadInitialGames();
 
 let adminMode = false;
+let adminApproved = false;
 let curId: string | null = null;
 let imgAr = 0.8;
 let pref = 0;
 let relIds: string[] = [];
 let lastT = 0;
 
+let syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
 function saveGamesToLocal(newGames: Game[]) {
-  games = newGames;
+  const changed = newGames.filter(g => syncedCatalog.get(g.id) !== JSON.stringify(g));
+  const removed = [...syncedCatalog.keys()].filter(id => !newGames.some(g => g.id === id));
+  games = newGames.map(enrichSteamGame);
   try {
     localStorage.setItem('coop_games', JSON.stringify(games));
   } catch (e) {}
   render();
   syncDet();
   updStamp();
-}
-
-async function clientCheckPassword(pass: string): Promise<boolean> {
-  try {
-    let salt = DEFAULT_ADMIN_CONFIG.salt || 'b147683827ba8dbf';
-    let targetHash = DEFAULT_ADMIN_CONFIG.hash || 'feb0e27703ae07a95aeccea6323d96a8a4de8cda8d31ea2f1342cffc8b304d18';
-    const customCfg = localStorage.getItem('coop_admin_cfg');
-    if (customCfg) {
-      try {
-        const parsed = JSON.parse(customCfg);
-        if (parsed.salt && parsed.hash && parsed.baseHash === DEFAULT_ADMIN_CONFIG.hash) {
-          salt = parsed.salt;
-          targetHash = parsed.hash;
-        }
-      } catch (e) {}
-    }
-    const buf = new TextEncoder().encode(salt + pass);
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-    const clientHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    return clientHash === targetHash;
-  } catch (e) {
-    return false;
+  if (adminMode && adminApproved) {
+    void Promise.all([
+      ...changed.map(g => publishCatalogGame(g)),
+      ...removed.map(id => removeCatalogGame(id))
+    ]).then(() => {
+      syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
+      if (changed.length || removed.length) toast('تم حفظ التغييرات لجميع الزوار ✅');
+    }).catch(err => {
+      console.error('Firestore catalog update failed:', err);
+      toast('تعذر حفظ التعديل لجميع الزوار');
+    });
   }
 }
-
-async function clientSetPassword(password: string): Promise<boolean> {
-  try {
-    const salt = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-    const buf = new TextEncoder().encode(salt + password);
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-    const hash = Array.from(new Uint8Array(hashBuf))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem('coop_admin_cfg', JSON.stringify({
-      salt,
-      hash,
-      baseHash: DEFAULT_ADMIN_CONFIG.hash
-    }));
-    return true;
-  } catch (e) {
-    return false;
-  }
+function applySharedCatalog(overrides: { id: string; deleted?: boolean; game?: Game }[]) {
+  const map = new Map(combineCatalog(loadInitialGames()).map(g => [g.id, g]));
+  overrides.forEach(change => {
+    if (change.deleted) map.delete(change.id);
+    else if (change.game && change.game.id === change.id) map.set(change.id, enrichSteamGame(change.game));
+  });
+  games = [...map.values()];
+  syncedCatalog = new Map(games.map(g => [g.id, JSON.stringify(g)]));
+  render(); syncDet(); updStamp();
 }
 
 let votes: Record<string, { n: number; uids: string[]; names: string[] }> = {};
@@ -1268,95 +1255,26 @@ function importGamesJson() {
 async function fillAdminBox() {
   const bx = $('admb');
   if (!bx) return;
-  bx.innerHTML = `${luxCornersHTML()}<div class="ar"><input id="mpw" type="password" autocomplete="off" placeholder="اكتب رمز الأدمن"><button id="mkey" type="button" aria-label="دخول الأدمن">${KEY}<span>دخول الأدمن</span></button></div>`;
+  bx.innerHTML = `${luxCornersHTML()}<button id="mkey" class="admin-google-lux" type="button" aria-label="تسجيل الدخول بحساب Google">
+    ${KEY}<span>تسجيل الدخول بحساب Google</span>
+  </button>`;
   $('mkey').onclick = adminLogin;
-  const mpw = $('mpw') as HTMLInputElement | null;
-  if (mpw) {
-    mpw.onkeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') adminLogin();
-    };
-  }
 }
-
-function admShake() {
-  const b = $('admb');
-  if (!b) return;
-  b.classList.remove('shake');
-  void b.offsetWidth;
-  b.classList.add('shake');
-}
-
-function unlockAdmin() {
-  const k = $('mkey');
-  if (k) k.classList.add('ok');
-  setTimeout(() => {
+async function adminLogin() {
+  try {
+    const approved = await loginApprovedAdmin();
+    if (!approved) {
+      await logoutAdmin();
+      toast('حسابك غير مسجل كمشرف في Firebase');
+      return;
+    }
+    adminApproved = true;
     setAdmin(true);
     buildMenu();
-    toast('أهلاً بك 🔐');
-  }, 450);
-}
-
-let fails = 0;
-let lockUntil = 0;
-
-async function adminLogin() {
-  const mpw = $('mpw') as HTMLInputElement | null;
-  const p = mpw ? mpw.value : '';
-  if (!p) {
-    admShake();
-    return toast('اكتب رمز الأدمن');
-  }
-  if (Date.now() < lockUntil) {
-    admShake();
-    return toast('انتظر شوي ثم جرّب مرة ثانية');
-  }
-
-  let loggedIn = false;
-  let errMsg = 'الرمز غلط';
-
-  if (backendAvailable) {
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: p })
-      });
-      if (res.status === 404) {
-        backendAvailable = false;
-      } else {
-        const data = await res.json();
-        if (res.ok && data.success) {
-          loggedIn = true;
-        } else {
-          errMsg = data.error || 'الرمز غلط';
-        }
-      }
-    } catch (e) {
-      backendAvailable = false;
-    }
-  }
-
-  // If backend is not available (e.g. static host on Vercel)
-  if (!backendAvailable && !loggedIn) {
-    const ok = await clientCheckPassword(p);
-    if (ok) {
-      loggedIn = true;
-    } else {
-      errMsg = 'الرمز غلط';
-    }
-  }
-
-  if (loggedIn) {
-    fails = 0;
-    unlockAdmin();
-  } else {
-    if (++fails >= 3) {
-      lockUntil = Date.now() + 30000;
-      fails = 0;
-    }
-    if (mpw) mpw.value = '';
-    admShake();
-    toast(errMsg);
+    toast('تم تسجيل دخول المشرف 🔐');
+  } catch (error) {
+    console.error('Admin login failed', error);
+    toast('تعذر تسجيل الدخول؛ تحقق من إعدادات Google وFirebase');
   }
 }
 
@@ -1403,65 +1321,26 @@ $('menu').onclick = (e: MouseEvent) => {
     importGamesJson();
   } else if (a === 'pw') {
     drawer(false);
-    openPw('setup');
+    toast('تتم إدارة دخول المشرف عبر حساب Google');
   } else if (a === 'out') {
     drawer(false);
+    void logoutAdmin();
+    adminApproved = false;
     setAdmin(false);
   }
 };
 
 function setAdmin(on: boolean) {
-  adminMode = on;
-  try {
-    sessionStorage.setItem('adm', adminMode ? '1' : '0');
-  } catch (e) {}
+  adminMode = !!on && adminApproved;
   $('abar').classList.toggle('on', adminMode);
   render();
   syncDet();
 }
-
 $('aex').onclick = () => {
+  void logoutAdmin();
+  adminApproved = false;
   setAdmin(false);
-  toast('أنت الحين تشوف الموقع مثل أخوياك 👁️');
-};
-
-let pmode = 'setup';
-function openPw(m: string) {
-  pmode = m;
-  $('pt').textContent = 'تغيير رمز الأدمن 🔑';
-  $('pp').textContent = 'اختر رمزاً جديداً لصفحة الأدمن:';
-  $('pw2').style.display = 'block';
-  ($('pw') as HTMLInputElement).value = '';
-  ($('pw2') as HTMLInputElement).value = '';
-  ($('pdlg') as HTMLDialogElement).showModal();
-  $('pw').focus();
-}
-
-$('pcx').onclick = () => ($('pdlg') as HTMLDialogElement).close();
-
-$('pf').onsubmit = async (e: Event) => {
-  e.preventDefault();
-  const p = ($('pw') as HTMLInputElement).value;
-  const p2 = ($('pw2') as HTMLInputElement).value;
-  if (p.length < 4) return toast('الرمز قصير (4 أحرف على الأقل)');
-  if (p !== p2) return toast('الرمزين مو متطابقين');
-
-  await clientSetPassword(p);
-  if (backendAvailable) {
-    try {
-      const res = await fetch('/api/admin/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: p })
-      });
-      if (res.status === 404) backendAvailable = false;
-    } catch (err) {
-      backendAvailable = false;
-    }
-  }
-
-  ($('pdlg') as HTMLDialogElement).close();
-  toast('تم حفظ الرمز الجديد 🔑');
+  toast('تم تسجيل خروج المشرف');
 };
 
 document.addEventListener('keydown', e => {
@@ -2349,11 +2228,13 @@ let lastVotesT = 0;
 
 // Initialize
 (async () => {
-  let admStored = false;
-  try {
-    admStored = sessionStorage.getItem('adm') === '1';
-  } catch (e) {}
-  setAdmin(admStored);
+  setAdmin(false);
+  observeAdminSession(approved => {
+    adminApproved = approved;
+    setAdmin(approved);
+    buildMenu();
+  });
+  subscribeToCatalogOverrides<Game>(applySharedCatalog);
 
   // Render initial / cached games immediately so screen is NEVER blank
   if (myV.size > 0 && Object.keys(votes).length === 0) {
