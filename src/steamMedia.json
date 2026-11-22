@@ -1,7 +1,12 @@
 {
   "386940": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/386940/header.jpg?t=1765298731",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/386940/53675/840a81d7bb06ec65b2ce272294a83c6d5b752b78/1750523143/hls_264_master.m3u8?t=1692053208",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256661425/movie.293x165.jpg?t=1692053208",
+      "title": "Ultimate Chicken Horse Launch Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/386940/ss_37241b90656a823b63934ee996bb81efd9fc8468.1920x1080.jpg?t=1765298731",
@@ -40,11 +45,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/386940/ss_a64a14eb4daa04c1ba2c3ab6fc1625ef5cdfe19b.600x338.jpg?t=1765298731"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.495Z"
+    "updatedAt": "2026-11-22T08:28:08.179Z"
   },
   "477160": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/477160/9258286b309480a3ce438c07cb51fadf3ea2f1d1/header_alt_assets_27.jpg?t=1793018738",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/477160/318607826/26280147a63f888fa5ef2b3622c3f7a4c1cba8fb/1789037952/hls_264_master.m3u8?t=1789390611",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257421781/4ecc903425fcc4b6686bdc978a9c901484ead4da/movie_600x337.jpg?t=1789390611",
+      "title": "Jail Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/477160/777d3ec5b37dc1f3eea73a794d9308db3f381cf8/ss_777d3ec5b37dc1f3eea73a794d9308db3f381cf8.1920x1080.jpg?t=1793018738",
@@ -87,11 +97,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/477160/4062b4de4cf5fac03557adb96054d546234a3ea5/ss_4062b4de4cf5fac03557adb96054d546234a3ea5.600x338.jpg?t=1793018738"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.004Z"
+    "updatedAt": "2026-11-22T08:28:07.939Z"
   },
   "648800": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/648800/header.jpg?t=1727184011",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/648800/472596/2b044f3af0177b0711f90c375be5a4b346c125e0/1750567254/hls_264_master.m3u8?t=1655744106",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256892239/movie.293x165.jpg?t=1655744106",
+      "title": "Raft - The Final Chapter Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/648800/ss_c22b2ff5ba5609f74e61b5feaa5b7a1d7fd1dbd3.1920x1080.jpg?t=1727184011",
@@ -134,11 +149,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/648800/ss_c885b2df8492951552fe4ef00ca23a81321f0bb3.600x338.jpg?t=1727184011"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:17.123Z"
+    "updatedAt": "2026-11-22T08:28:08.513Z"
   },
   "690640": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/690640/64169d6388ed69eb94b7c9d77e4e7fb80f597025/header.jpg?t=1793616299",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/690640/246590/13adc090c74d585f7fb3ee44e8da1cd20e9eef41/1750571211/hls_264_master.m3u8?t=1570539731",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256763950/movie.293x165.jpg?t=1570539731",
+      "title": "Trine 4: The Nightmare Prince Launch Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/690640/ss_161a3f2c785839b25c4e0b992faa59c214def18b.1920x1080.jpg?t=1793616299",
@@ -181,11 +201,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/690640/ss_12ddcce8a736c02aa2e68482554fa42d32f495a4.600x338.jpg?t=1793616299"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:17.244Z"
+    "updatedAt": "2026-11-22T08:28:08.584Z"
   },
   "728880": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/728880/9305414f49b2f7aee7f7198dc507d6b66383fdd6/header.jpg?t=1789548883",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/728880/316103/1b19211ee13dc4881fae850c036de885578dc15c/1750576130/hls_264_master.m3u8?t=1601561015",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256803126/movie.293x165.jpg?t=1601561015",
+      "title": "Moon Harvest Update",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/728880/ss_2f84a12e1fe82cca37848bf29d4b8b16e83db03b.1920x1080.jpg?t=1789548883",
@@ -228,11 +253,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/728880/ss_02a07ff51f68e4a39cdb5860c488955a52e12beb.600x338.jpg?t=1789548883"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.620Z"
+    "updatedAt": "2026-11-22T08:28:07.712Z"
   },
   "905340": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/905340/header.jpg?t=1784605800",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/905340/240983/238d9ebacbc1a981264461d409ae7a0f197e980f/1750595115/hls_264_master.m3u8?t=1567257082",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256760783/movie.293x165.jpg?t=1567257082",
+      "title": "Launch Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/905340/ss_4519c3bd6a12d7314a5997879e6370bdf6bfc6e7.1920x1080.jpg?t=1784605800",
@@ -275,11 +305,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/905340/ss_6d980c345c7747c47835d384156c0ab072463b09.600x338.jpg?t=1784605800"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:17.399Z"
+    "updatedAt": "2026-11-22T08:28:08.650Z"
   },
   "1004490": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1004490/header.jpg?t=1792607776",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1004490/314179/02b40d4c9c618e98348dfb65d2f84606910f6d0c/1750605684/hls_264_master.m3u8?t=1600871032",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256802135/movie.293x165.jpg?t=1600871032",
+      "title": "Tools Up! - Time Attack Update",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1004490/ss_bb046c5b9cad504ff8af5366580970349052dfd6.1920x1080.jpg?t=1792607776",
@@ -318,11 +353,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1004490/ss_5fa05b8e58b157fa79005981750461745c6051f6.600x338.jpg?t=1792607776"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:17.518Z"
+    "updatedAt": "2026-11-22T08:28:08.757Z"
   },
   "1011670": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1011670/header.jpg?t=1773072467",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1011670/351743/ed4d3356382a5719c679386e1447344f39c47fbd/1751175979/hls_264_master.m3u8?t=1617292978",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256824548/movie.293x165.jpg?t=1617292978",
+      "title": "Release Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1011670/ss_7d502abc5ee975458190ce995d8728779839156a.1920x1080.jpg?t=1773072467",
@@ -365,11 +405,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1011670/ss_420da7be57589aac38782c91bb191aaa59750d48.600x338.jpg?t=1773072467"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:17.640Z"
+    "updatedAt": "2026-11-22T08:28:08.827Z"
   },
   "1016920": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1016920/header.jpg?t=1789381506",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1016920/312901/b266cc2e2ce68811f45a405789ea6d91af728313/1750606549/hls_264_master.m3u8?t=1600436813",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256801370/movie.293x165.jpg?t=1600436813",
+      "title": "Full Release Gameplay Trailer_Daedalic",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1016920/ss_718c17d9145a8f11eb99de457d513fc79bd82979.1920x1080.jpg?t=1789381506",
@@ -396,11 +441,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1016920/ss_49f86ac69250a4392a9085b5acbb95899a690341.600x338.jpg?t=1789381506"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.329Z"
+    "updatedAt": "2026-11-22T08:28:08.088Z"
   },
   "1211020": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1211020/7b8f4f904610418de9e36bc7ac2c85722d2ed9b0/header_alt_assets_3.jpg?t=1795168940",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1211020/1209196470/de2a78bdbc58d3a0917d8c2a79b2640935da7ac8/1755859528/hls_264_master.m3u8?t=1758214778",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257187141/35369017e244719da33eeb7486185324e83c284f/movie_600x337.jpg?t=1758214778",
+      "title": "Wobbly Life - Space Update",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1211020/82aee5b999f2706768f0c9085a0e8c5b84033a66/ss_82aee5b999f2706768f0c9085a0e8c5b84033a66.1920x1080.jpg?t=1795168940",
@@ -443,11 +493,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1211020/96a1ca17528c3bec74c9ada1de9a0b0db28df446/ss_96a1ca17528c3bec74c9ada1de9a0b0db28df446.600x338.jpg?t=1795168940"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:17.000Z"
+    "updatedAt": "2026-11-22T08:28:08.450Z"
   },
   "1260320": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1260320/header.jpg?t=1789480764",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1260320/1986484183/47add9876402e8eafca077767b5592a354386fec/1789478990/hls_264_master.m3u8?t=1789480759",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257425708/4230bd8d86513ffcfa8cf54b4f74b9b1444ac42d/movie_600x337.jpg?t=1789480759",
+      "title": "20260915 3rd Anniversary",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1260320/ss_18fa4ea184c84befeef65bc4518aa26f4084c6c0.1920x1080.jpg?t=1789480764",
@@ -490,11 +545,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1260320/ss_f9aad46ea4a4168b3ce4cb75a1019eaf201cc376.600x338.jpg?t=1789480764"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.755Z"
+    "updatedAt": "2026-11-22T08:28:08.310Z"
   },
   "1326470": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1326470/header.jpg?t=1708624856",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1326470/541725/76f298f949c4ae5b4257fa2056112f8d34285799/1750672622/hls_264_master.m3u8?t=1677175226",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256932123/movie.293x165.jpg?t=1677175226",
+      "title": "Sons Of The Forest Multiplayer Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1326470/ss_e6e3ab1badfb287a77fb6eef7b1589a35371496b.1920x1080.jpg?t=1708624856",
@@ -537,11 +597,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1326470/ss_9d1b215bc41b2fc152e68c045c7b9a4d288d2464.600x338.jpg?t=1708624856"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:14.456Z"
+    "updatedAt": "2026-11-22T08:28:07.202Z"
   },
   "1599600": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1599600/eb8fa3ad44fb5b4e4de4ef402101a55063797958/header.jpg?t=1794915297",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1599600/484890/dce6b069ede6b19aa823a43e88aeeb3d13408202/1750705040/hls_264_master.m3u8?t=1659620731",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256899319/movie.293x165.jpg?t=1659620731",
+      "title": "Launch Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1599600/ss_8c944c593113598b6446b6b5d07962a10fe79ec6.1920x1080.jpg?t=1794915297",
@@ -584,11 +649,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1599600/ss_2cd851def59b9c08bedd71a42a2cbfa79e8c754a.600x338.jpg?t=1794915297"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.123Z"
+    "updatedAt": "2026-11-22T08:28:08.008Z"
   },
   "1621690": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1621690/header.jpg?t=1791454740",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1621690/419992208/922464bc06b3e0d01eb490d2d6a592cda18a7a31/1789749445/hls_264_master.m3u8?t=1789981169",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257428623/428fb6a6f6219dad63810c8109bcb75529814220/movie_600x337.jpg?t=1789981169",
+      "title": "Riders of the Underground",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1621690/632a42b91e005b2d2daf99fee946732c95a9737c/ss_632a42b91e005b2d2daf99fee946732c95a9737c.1920x1080.jpg?t=1791454740",
@@ -631,11 +701,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1621690/ss_f648f1cf6154cefaac69e68e1289191a53df0845.600x338.jpg?t=1791454740"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.887Z"
+    "updatedAt": "2026-11-22T08:28:08.380Z"
   },
   "1641700": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1641700/header.jpg?t=1780480295",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1641700/592975/ba06defae557b590752feffa260492377d342aa0/1750714601/hls_264_master.m3u8?t=1692194237",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256961287/movie.293x165.jpg?t=1692194237",
+      "title": "Launch Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1641700/ss_9f50fda0b273a54fb40372511f611c8e6697ffeb.1920x1080.jpg?t=1780480295",
@@ -658,11 +733,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1641700/ss_366467be398c574c68d31b1bbd8101884b4ce163.600x338.jpg?t=1780480295"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:16.641Z"
+    "updatedAt": "2026-11-22T08:28:08.247Z"
   },
   "1966720": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1966720/header.jpg?t=1775380053",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/1966720/593018/d94ebe61f51f602028df99031bafd2ae075b1132/1750743020/hls_264_master.m3u8?t=1690909590",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256961309/movie.293x165.jpg?t=1690909590",
+      "title": "Lethal Company - Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1966720/ss_78075e9a94675823024f12fce9d69b243cca94f8.1920x1080.jpg?t=1775380053",
@@ -701,11 +781,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1966720/ss_27eb66c9d0e327f90915cef23b1377e9b10bc27b.600x338.jpg?t=1775380053"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:13.422Z"
+    "updatedAt": "2026-11-22T08:28:06.728Z"
   },
   "2567870": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2567870/9989d3793429ffa481cc3228bb66d65565b9ce2b/header.jpg?t=1793107565",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/2567870/1245426936/c3746012c89938fda748b81af214a998f22b92a2/1790271934/hls_264_master.m3u8?t=1791478906",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257434023/d0cc7bb3f6c14a2f50c3b0945a11313f6bd272af/movie_600x337.jpg?t=1791478906",
+      "title": "Upcoming Map Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2567870/ss_b321a9c6a20052b905dba4255680b1cee1f21edc.1920x1080.jpg?t=1793107565",
@@ -748,11 +833,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2567870/ss_4bddc5c5d910cae96fffe669b6a0becf53e0cefb.600x338.jpg?t=1793107565"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.752Z"
+    "updatedAt": "2026-11-22T08:28:07.800Z"
   },
   "2644470": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2644470/header.jpg?t=1760143639",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/2644470/711991/40fd2040d72a8b22eac325edc7beb3d41e27d737/1750817856/hls_264_master.m3u8?t=1724771026",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257030041/movie.293x165.jpg?t=1724771026",
+      "title": "ANNOUNCE_TRAILER",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2644470/ss_d25ef9f4153bbd0c2d936fe8eb9de3d2e48a6944.1920x1080.jpg?t=1760143639",
@@ -775,11 +865,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2644470/ss_cba4e50a6b542ab75234261697f800071cc162d1.600x338.jpg?t=1760143639"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.224Z"
+    "updatedAt": "2026-11-22T08:28:07.532Z"
   },
   "2709570": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2709570/header.jpg?t=1770930541",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/2709570/733877/2728beedd3c68f8bc8b4498db081d424f48ca458/1750819061/hls_264_master.m3u8?t=1722510053",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257042383/movie.293x165.jpg?t=1722510053",
+      "title": "SupermarketTogether_Trailer1",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2709570/ss_1131844c19d58221463fd0adf9dc413cc543940f.1920x1080.jpg?t=1770930541",
@@ -822,11 +917,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2709570/ss_a15e6eb95a99b5997081c4d53a9d682a0686f01d.600x338.jpg?t=1770930541"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.372Z"
+    "updatedAt": "2026-11-22T08:28:07.592Z"
   },
   "2827200": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2827200/9108c2901a1d8ddc96bc68c6c5996fcb2b777ec0/header_alt_assets_2.jpg?t=1795077939",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/2827200/1017648318/7c46c5e427b2915da728a95208b4ada8a4130867/1792891662/hls_264_master.m3u8?t=1792982027",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257477064/b37c8377aef9c0d8d933c4961ebc1cea9b15dd59/movie_600x337.jpg?t=1792982027",
+      "title": "MIMESIS OCT. Update Cinematic Trailer Full Version",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2827200/12db504cd7da1646d1cf020802a97153abd69e74/ss_12db504cd7da1646d1cf020802a97153abd69e74.1920x1080.jpg?t=1795077939",
@@ -869,11 +969,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2827200/fa58724015b713b7ee35f00d69110fe61f5ef4d7/ss_fa58724015b713b7ee35f00d69110fe61f5ef4d7.600x338.jpg?t=1795077939"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:13.573Z"
+    "updatedAt": "2026-11-22T08:28:06.789Z"
   },
   "2881650": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2881650/header.jpg?t=1785137321",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/2881650/681656/73819bb7ec815170d38d53a7c0267441852bc4c5/1750821037/hls_264_master.m3u8?t=1711987141",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257012412/movie.293x165.jpg?t=1711987141",
+      "title": "Content Warning Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2881650/ss_5df7377699e11b22ffbb604f2b3cc74d39d9bb2f.1920x1080.jpg?t=1785137321",
@@ -904,11 +1009,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2881650/ss_371cb06f9f6a6bc9e5273b4d6b8168ce00f4ff34.600x338.jpg?t=1785137321"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.864Z"
+    "updatedAt": "2026-11-22T08:28:07.862Z"
   },
   "3241660": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3241660/62177765c05399116f0453fe1177b00ceed698c4/header_alt_assets_3.jpg?t=1793278962",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/3241660/524147145/e327ae080f1f4d19bac40fccf79b876ae3ba29a2/1793192328/hls_264_master.m3u8?t=1793278961",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257482520/dc5b62a0a70918fdd661c8d948f2858378abd5cf/movie_600x337.jpg?t=1793278961",
+      "title": "Sunstone Update Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3241660/ss_e6babaab52581f81df91e50768cee6a9334ef6ec.1920x1080.jpg?t=1793278962",
@@ -931,11 +1041,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3241660/ss_e4dc1bc0ada8fb7cb164b3ac37be82f51aae5627.600x338.jpg?t=1793278962"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.497Z"
+    "updatedAt": "2026-11-22T08:28:07.649Z"
   },
   "3527290": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3527290/31bac6b2eccf09b368f5e95ce510bae2baf3cfcd/header.jpg?t=1792684718",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/3527290/1585242327/11b9dd1a0e2f05f7ed3e22255990a2293bacb8b9/1786469033/hls_264_master.m3u8?t=1786470570",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257396692/597dac56dabc913f8de2529a22461825f4086154/movie_600x337.jpg?t=1786470570",
+      "title": "The Final Ascent Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3527290/aa39b41b105aac51f2312a92979a3b9cb9909a46/ss_aa39b41b105aac51f2312a92979a3b9cb9909a46.1920x1080.jpg?t=1792684718",
@@ -978,11 +1093,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3527290/1fa70611c0bc7c4393eae30827560d93687a6234/ss_1fa70611c0bc7c4393eae30827560d93687a6234.600x338.jpg?t=1792684718"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:15.072Z"
+    "updatedAt": "2026-11-22T08:28:07.449Z"
   },
   "3712080": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3712080/5e03554f7fd68edf54813a8d5a576a8791672227/header.jpg?t=1794951319",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/3712080/1815536852/c23296a5368d23c945eeacd99bc4b959a1f15c00/1790869401/hls_264_master.m3u8?t=1790869949",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257442844/40d786f34d6975560438fad7823af7899d427b41/movie_600x337.jpg?t=1790869949",
+      "title": "Funnel Runners - The Great Plains Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3712080/04e175dc6730af73f03a49cfaa81a34f5c006915/ss_04e175dc6730af73f03a49cfaa81a34f5c006915.1920x1080.jpg?t=1794951319",
@@ -1025,11 +1145,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3712080/2ba31a3f3dcabad6f3e043e666e3f2bb71eebfe0/ss_2ba31a3f3dcabad6f3e043e666e3f2bb71eebfe0.600x338.jpg?t=1794951319"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:14.033Z"
+    "updatedAt": "2026-11-22T08:28:07.016Z"
   },
   "3949040": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3949040/cae24b4ed7f4531be51f0d63f785b7d253f92dc3/header.jpg?t=1789134289",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/3949040/1309387426/dce3fd504257a257abfe259fa3207a0bcf499582/1789049802/hls_264_master.m3u8?t=1789134288",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257421951/0a7e92273817978f603265c43ca4da5fb883d3e0/movie_600x337.jpg?t=1789134288",
+      "title": "RV There Yet? - St. Búttin Bay",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3949040/ed2f7080c6622688a72a86ca85af600f2a2bdfb9/ss_ed2f7080c6622688a72a86ca85af600f2a2bdfb9.1920x1080.jpg?t=1789134289",
@@ -1072,11 +1197,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3949040/fb646de9f84fdc610d394d78e81b4af4608c7045/ss_fb646de9f84fdc610d394d78e81b4af4608c7045.600x338.jpg?t=1789134289"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:13.784Z"
+    "updatedAt": "2026-11-22T08:28:06.857Z"
   },
   "4108000": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4108000/00ae7d0e0fd0ad72635bddb1dd80ee68cc94eed5/header.jpg?t=1793352925",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/4108000/81551079/ae9d6b148d4e75c0e61c5508e99e676852991401/1785412649/hls_264_master.m3u8?t=1785413491",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257388358/a0fa1d0aac1b8920b2ae74de176bc7ae5ba01eb5/movie_600x337.jpg?t=1785413491",
+      "title": "Machine Party | Available Now Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4108000/3eb86f408f3275f7567424526b60df2e65a69ea0/ss_3eb86f408f3275f7567424526b60df2e65a69ea0.1920x1080.jpg?t=1793352925",
@@ -1119,11 +1249,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4108000/413459c86e92626fcb6f04cf5e5c98e2299b7028/ss_413459c86e92626fcb6f04cf5e5c98e2299b7028.600x338.jpg?t=1793352925"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:14.286Z"
+    "updatedAt": "2026-11-22T08:28:07.075Z"
   },
   "4412320": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4412320/7182e312b98a494c3e498667b132693e9e4f6a0f/header.jpg?t=1793146466",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/4412320/1201540783/274e863b40ee0db4ec2cdc4f6c6619d76f0709c5/1792985504/hls_264_master.m3u8?t=1793146464",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257478335/88766a5a08e8ae1c96cb6d6a4442e8bf8b344793/movie_600x337.jpg?t=1793146464",
+      "title": "DWTB - 4.0 Update",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4412320/3d886888b23774d655c06c240153ccd4cac21de5/ss_3d886888b23774d655c06c240153ccd4cac21de5.1920x1080.jpg?t=1793146466",
@@ -1154,11 +1289,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4412320/109d0bb59b07f1e320cc6e91403b059a6640ab15/ss_109d0bb59b07f1e320cc6e91403b059a6640ab15.600x338.jpg?t=1793146466"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:14.887Z"
+    "updatedAt": "2026-11-22T08:28:07.389Z"
   },
   "4656000": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4656000/99c086faba625a8d3bc459bab444087d257ccbe1/header.jpg?t=1794217137",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/4656000/49788712/2a67a7ea1b0574c8d295e5cc4734523207bad504/1788267751/hls_264_master.m3u8?t=1788268623",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257342172/784973da0a1a28b1132cb7e7e62c8e2058169865/movie_600x337.jpg?t=1788268623",
+      "title": "Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4656000/429d033410531fc2ec6ba0cd24956868beaff095/ss_429d033410531fc2ec6ba0cd24956868beaff095.1920x1080.jpg?t=1794217137",
@@ -1201,11 +1341,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4656000/cc186a192c05ef8436115794a5942c01d1a04a75/ss_cc186a192c05ef8436115794a5942c01d1a04a75.600x338.jpg?t=1794217137"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:13.912Z"
+    "updatedAt": "2026-11-22T08:28:06.919Z"
   },
   "4948000": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4948000/362297ea18447bdf634052b56e7c1bc3d9ed2e72/header.jpg?t=1794593392",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/4948000/1223870675/893dd6000115ee519a099814d431b2a54efe611a/1785491281/hls_264_master.m3u8?t=1785491542",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257387604/8eccf70881f48c56924f9332065d7d4bbaac12ba/movie_600x337.jpg?t=1785491542",
+      "title": "Moo Who Gameplay Official Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4948000/b6767fd11ba4be8279beac835f3c49f48f1beb65/ss_b6767fd11ba4be8279beac835f3c49f48f1beb65.1920x1080.jpg?t=1794593392",
@@ -1248,11 +1393,16 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4948000/7f281135bc3fb24f316fafcfaccfa930637683ba/ss_7f281135bc3fb24f316fafcfaccfa930637683ba.600x338.jpg?t=1794593392"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:14.759Z"
+    "updatedAt": "2026-11-22T08:28:07.333Z"
   },
   "5053820": {
     "header": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5053820/cb42d784567e89c1c409e49856ece32c9cf8ab36/header.jpg?t=1789831835",
-    "trailer": null,
+    "trailer": {
+      "url": "https://video.akamai.steamstatic.com/store_trailers/5053820/352844902/5a74ecb159f2211e0dda7483b4a6c11303282b30/1787559917/hls_264_master.m3u8?t=1787561212",
+      "poster": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257391874/3c7668047d75d81b43ebafc7d21318427eaa6725/movie_600x337.jpg?t=1787561212",
+      "title": "Trailer",
+      "format": "hls"
+    },
     "screenshots": [
       {
         "full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5053820/a249b423e925d6e42daf910bdf6b03d5a06e40d5/ss_a249b423e925d6e42daf910bdf6b03d5a06e40d5.1920x1080.jpg?t=1789831835",
@@ -1283,6 +1433,6 @@
         "thumb": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5053820/c26e8133dc0bf982966bcd1bba6a312d84904600/ss_c26e8133dc0bf982966bcd1bba6a312d84904600.600x338.jpg?t=1789831835"
       }
     ],
-    "updatedAt": "2026-11-22T08:27:14.607Z"
+    "updatedAt": "2026-11-22T08:28:07.263Z"
   }
 }
