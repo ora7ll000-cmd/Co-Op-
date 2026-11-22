@@ -1209,7 +1209,7 @@ function buildMenu() {
 
   if (adminMode) {
     h += `<div class="msep">أدوات الأدمن</div>` +
-      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['pw', 'تغيير كلمة السر'], ['out', 'خروج من وضع الأدمن']]
+      [['vv', 'أصوات الأصدقاء'], ['add', 'إضافة لعبة'], ['seed', 'تحميل القائمة الأولى'], ['exp', 'نسخ كود الألعاب (JSON)'], ['imp', 'استيراد ألعاب (JSON)'], ['out', 'خروج من وضع الأدمن']]
         .map((x, i) => `<button class="ml sm2" style="--i:${7 + i}" data-act="${x[0]}">${x[1]}</button>`)
         .join('');
   } else {
@@ -1319,9 +1319,6 @@ $('menu').onclick = (e: MouseEvent) => {
   } else if (a === 'imp') {
     drawer(false);
     importGamesJson();
-  } else if (a === 'pw') {
-    drawer(false);
-    toast('تتم إدارة دخول المشرف عبر حساب Google');
   } else if (a === 'out') {
     drawer(false);
     void logoutAdmin();
