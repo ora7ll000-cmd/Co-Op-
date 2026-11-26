@@ -504,7 +504,6 @@ export async function resetGroupFirebaseVotes(rawCode: string): Promise<boolean>
 }
 
 // Cloudflare static hosting: admin authentication uses Firebase Auth, not a client password hash.
-export const auth = getAuth(app);
 export async function isApprovedAdmin(user: { uid: string } | null | undefined): Promise<boolean> {
   if (!user) return false;
   try {
