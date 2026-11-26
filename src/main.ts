@@ -1,6 +1,9 @@
 // Co-Op Web Application - Multi-Group Rooms & Showcase Logic
 import { registerSW } from 'virtual:pwa-register';
 import { defaultGames } from './initialData';
+import { extraGames } from './extraGames';
+import steamMedia from './steamMedia.json';
+import steamPrices from './steamPrices.json';
 import {
   type GroupRecord,
   type GroupGameRecord,
@@ -23,7 +26,7 @@ import {
   resetGroupFirebaseVotes
 } from './firebase';
 
-type Game = GroupGameRecord;
+type Game = GroupGameRecord & { storeAppId?: number; priceStatus?: 'steam' | 'free'; priceCheckedAt?: string };
 
 type GroupSession = {
   code: string;
@@ -109,6 +112,67 @@ const INFO: Record<string, [string, string, string]> = {
 
 const goalOf = (g: Game) => g.goal || (INFO[g.name] ? INFO[g.name][2] : '');
 const playersOf = (g: Game) => g.players || (INFO[g.name] ? INFO[g.name][0] : '');
+ 
+// Full built-in catalogue and verified Steam media/price feeds.
+type SteamMedia = {
+  header?: string;
+  trailer?: { url: string; poster: string; title: string; format?: 'hls' | 'mp4' } | null;
+  screenshots?: { full: string; thumb: string }[];
+};
+const mediaFeed = steamMedia as Record<string, SteamMedia>;
+const verifiedPriceFeed = steamPrices as Record<string, {
+  price: number; old: number; currency: string; checkedAt: string; free?: boolean
+}>;
+const builtInGames: Game[] = [...defaultGames, ...extraGames] as Game[];
+const knownSteamIds: Record<string, number> = {
+  'Lethal Company': 1966720, 'MIMESIS': 2827200, 'RV There Yet?': 3949040,
+  'BOMBANANA!': 4656000, 'Funnel Runners': 3712080, 'Machine Party': 4108000,
+  'Sons Of The Forest': 1326470, 'Mimic Party': 5053820,
+  'Moo Who?': 4948000, 'Dumb Ways to Build': 4412320
+};
+function safeSteamAsset(value?: string): string {
+  if (!value) return '';
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' &&
+      (u.hostname === 'steamstatic.com' || u.hostname.endsWith('.steamstatic.com')) ? u.toString() : '';
+  } catch { return ''; }
+}
+function enrichSteamGame(g: Game): Game {
+  const id = g.storeAppId || knownSteamIds[g.name];
+  if (!id) return g;
+  const m = mediaFeed[String(id)];
+  const p = verifiedPriceFeed[String(id)];
+  const shots = (m?.screenshots || []).map(x => safeSteamAsset(x.full)).filter(Boolean);
+  const officialCover = safeSteamAsset(m?.header);
+  const useOfficialCover = !g.img || g.id.startsWith('steam-') ||
+    (g.img.includes('steamstatic.com') && g.img.includes('/header.jpg'));
+  const updated: Game = {
+    ...g,
+    link: g.link || `https://store.steampowered.com/app/${id}/`,
+    img: useOfficialCover && officialCover ? officialCover : (g.img || officialCover),
+    screenshots: g.screenshots?.length ? g.screenshots : shots,
+    trailer: g.trailer || safeSteamAsset(m?.trailer?.url),
+    trailerPoster: g.trailerPoster || safeSteamAsset(m?.trailer?.poster),
+    storeAppId: id,
+    priceStatus: g.priceStatus || 'steam'
+  };
+  if (p?.currency === 'SAR' && Number.isFinite(p.price) && p.price >= 0) {
+    return {
+      ...updated, price: p.price, old: Number.isFinite(p.old) ? p.old : p.price,
+      priceCheckedAt: p.checkedAt, priceStatus: p.free ? 'free' : 'steam'
+    };
+  }
+  return updated;
+}
+function combineCatalog(cached: Game[]): Game[] {
+  const ids = new Set(cached.map(g => g.id));
+  const names = new Set(cached.map(g => g.name.toLowerCase().trim()));
+  return [...cached, ...builtInGames.filter(g =>
+    !ids.has(g.id) && !names.has(g.name.toLowerCase().trim())
+  )].map(enrichSteamGame);
+}
+
 
 let backendAvailable = true;
 let currentSession: GroupSession | null = null;
@@ -194,14 +258,14 @@ function loadGroupCachedGames(code: string): Game[] {
     const saved = localStorage.getItem(`coop_group_games_${code}`);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return combineCatalog(parsed);
     }
   } catch (e) {}
-  return (defaultGames as Game[]).map(g => ({ ...g }));
+  return builtInGames.map(g => enrichSteamGame({ ...g }));
 }
 
 function saveGamesToLocal(newGames: Game[]) {
-  games = newGames;
+  games = combineCatalog(newGames);
   if (currentSession) {
     try {
       localStorage.setItem(`coop_group_games_${currentSession.code}`, JSON.stringify(games));
@@ -2494,6 +2558,7 @@ function gamesEqual(a: Game[], b: Game[]): boolean {
 }
 
 function applyGamesUpdate(newGames: Game[], newLastT: number) {
+  newGames = combineCatalog(newGames);
   if (games.length > 0 && gamesEqual(newGames, games)) return;
 
   const prevMap = new Map(games.map(g => [g.id, JSON.stringify(g)]));
@@ -2909,7 +2974,7 @@ on('cgForm', 'submit', async (e: SubmitEvent) => {
       .join('');
     const adminPinHash = await sha256Hex(adminPinSalt + adminPin);
     const createdAt = new Date().toISOString();
-    const initialList = (defaultGames as Game[]).map(g => ({ ...g }));
+    const initialList = builtInGames.map(g => enrichSteamGame({ ...g }));
 
     const grpRecord: GroupRecord = {
       code,
