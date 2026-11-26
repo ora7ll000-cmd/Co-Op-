@@ -6,8 +6,93 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidGroupCode(code) {
+      return code is string && code.size() >= 4 && code.size() <= 16 && code.matches('^[A-Z0-9]+$');
+    }
+
+    function isValidSlug(slug) {
+      return slug is string && slug.size() >= 16 && slug.size() <= 64 && slug.matches('^[a-f0-9]+$');
+    }
+
+    function isValidGroupNameLock(data) {
+      return data.keys().hasAll(['slug', 'name', 'groupCode', 'createdAt']) &&
+             data.keys().hasOnly(['slug', 'name', 'groupCode', 'createdAt']) &&
+             isValidSlug(data.slug) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             isValidGroupCode(data.groupCode) &&
+             data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidGroup(data) {
+      return data.keys().hasAll([
+               'code', 'name', 'slug', 'adminName',
+               'adminPinHash', 'adminPinSalt', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'code', 'name', 'slug', 'adminName',
+               'adminPinHash', 'adminPinSalt',
+               'joinPassHash', 'joinPassSalt', 'createdAt', 'updatedAt'
+             ]) &&
+             isValidGroupCode(data.code) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             isValidSlug(data.slug) &&
+             data.adminName is string && data.adminName.size() >= 1 && data.adminName.size() <= 60 &&
+             data.adminPinHash is string && data.adminPinHash.size() >= 32 && data.adminPinHash.size() <= 128 &&
+             data.adminPinSalt is string && data.adminPinSalt.size() >= 8 && data.adminPinSalt.size() <= 64 &&
+             (!('joinPassHash' in data) || (data.joinPassHash is string && data.joinPassHash.size() <= 128)) &&
+             (!('joinPassSalt' in data) || (data.joinPassSalt is string && data.joinPassSalt.size() <= 64)) &&
+             data.createdAt is string && data.createdAt.size() <= 64 &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidGroupGame(data) {
+      return data.keys().hasAll(['id', 'name', 'price']) &&
+             data.keys().hasOnly([
+               'id', 'name', 'price', 'old', 'order', 'link', 'img', 'ar',
+               'players', 'desc', 'goal', 'sp', 'sc', 'screenshots', 'trailer', 'trailerPoster'
+             ]) &&
+             isValidId(data.id) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 140 &&
+             data.price is number && data.price >= 0 &&
+             (!('old' in data) || (data.old is number && data.old >= 0)) &&
+             (!('order' in data) || data.order is number) &&
+             (!('link' in data) || (data.link is string && data.link.size() <= 600)) &&
+             (!('img' in data) || (data.img is string && data.img.size() <= 900000)) &&
+             (!('ar' in data) || data.ar is number) &&
+             (!('players' in data) || (data.players is string && data.players.size() <= 40)) &&
+             (!('desc' in data) || (data.desc is string && data.desc.size() <= 1500)) &&
+             (!('goal' in data) || (data.goal is string && data.goal.size() <= 1500)) &&
+             (!('sp' in data) || data.sp is number || (data.sp is string && data.sp.size() <= 16)) &&
+             (!('sc' in data) || data.sc is number) &&
+             (!('screenshots' in data) || (
+               data.screenshots is list &&
+               data.screenshots.size() <= 10 &&
+               (data.screenshots.size() == 0 || data.screenshots[0] is string)
+             )) &&
+             (!('trailer' in data) || (data.trailer is string && data.trailer.size() <= 600)) &&
+             (!('trailerPoster' in data) || (data.trailerPoster is string && data.trailerPoster.size() <= 200000));
+    }
+
+    function isValidGroupVote(data) {
+      return data.keys().hasAll(['uid', 'name', 'v']) &&
+             data.keys().hasOnly(['uid', 'name', 'v', 'updatedAt']) &&
+             isValidId(data.uid) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+             data.v is list && data.v.size() <= 3 &&
+             (data.v.size() == 0 || data.v[0] is string) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
     function isValidVote(data) {
@@ -19,33 +104,50 @@ service cloud.firestore {
              (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
-    // Admin grants can only be created/removed from the Firebase Console or Admin SDK.
-    // A visitor cannot promote their own account.
-    function isAdmin() {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
+    // Unique group name locks (prevents duplicate group names / rival admins)
+    match /group_names/{slug} {
+      allow get: if isValidSlug(slug);
+      allow list: if false;
+      allow create: if isValidSlug(slug) && isValidGroupNameLock(incoming()) && incoming().slug == slug;
+      allow update, delete: if false;
     }
 
-    match /admins/{uid} {
-      allow get: if request.auth != null && request.auth.uid == uid;
-      allow list, create, update, delete: if false;
+    // Group metadata (lookup strictly by exact group code; no enumeration)
+    match /groups/{groupId} {
+      allow get: if isValidGroupCode(groupId);
+      allow list: if false;
+      allow create: if isValidGroupCode(groupId) && isValidGroup(incoming()) && incoming().code == groupId;
+      allow update, delete: if false;
+
+      // Games scoped inside the group
+      match /games/{gameId} {
+        allow get, list: if isValidGroupCode(groupId);
+        allow create, update: if isValidGroupCode(groupId) &&
+                                 isValidId(gameId) &&
+                                 isValidGroupGame(incoming()) &&
+                                 incoming().id == gameId &&
+                                 exists(/databases/$(database)/documents/groups/$(groupId));
+        allow delete: if isValidGroupCode(groupId) &&
+                         isValidId(gameId) &&
+                         exists(/databases/$(database)/documents/groups/$(groupId));
+      }
+
+      // Votes + voter names scoped inside the group
+      match /votes/{voteUid} {
+        allow get, list: if isValidGroupCode(groupId);
+        allow create, update: if isValidGroupCode(groupId) &&
+                                 isValidId(voteUid) &&
+                                 isValidGroupVote(incoming()) &&
+                                 incoming().uid == voteUid &&
+                                 exists(/databases/$(database)/documents/groups/$(groupId));
+        allow delete: if isValidGroupCode(groupId) && isValidId(voteUid);
+      }
     }
 
-    match /catalogOverrides/{gameId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin() &&
-        isValidId(gameId) &&
-        (request.resource == null || (
-          request.resource.data.keys().hasOnly(['deleted', 'game', 'updatedAt']) &&
-          request.resource.data.deleted is bool
-        ));
-    }
-
-    // Public community co-op votes collection
+    // Legacy public community co-op votes collection
     match /votes/{voteUid} {
       allow read: if true;
-      allow create, update: if isValidId(voteUid) && isValidVote(request.resource.data) && request.resource.data.uid == voteUid;
+      allow create, update: if isValidId(voteUid) && isValidVote(incoming()) && incoming().uid == voteUid;
       allow delete: if isValidId(voteUid);
     }
   }

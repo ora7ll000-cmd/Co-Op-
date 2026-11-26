@@ -1,8 +1,216 @@
 {
   "entities": {
+    "GroupNameLock": {
+      "title": "GroupNameLock",
+      "description": "Unique normalized group name lock preventing duplicate group names and rival admins",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "SHA-256 hex digest of normalized group name",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Original display name of the group",
+          "maxLength": 80
+        },
+        "groupCode": {
+          "type": "string",
+          "description": "Unique 6-character uppercase room code",
+          "maxLength": 16
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation",
+          "maxLength": 64
+        }
+      },
+      "required": ["slug", "name", "groupCode", "createdAt"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "Private Co-Op gaming group with a single admin creator and passwordless invite/name access",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Unique uppercase room code",
+          "maxLength": 16
+        },
+        "name": {
+          "type": "string",
+          "description": "Unique display name of the group",
+          "maxLength": 80
+        },
+        "slug": {
+          "type": "string",
+          "description": "Normalized group name SHA-256 hex key",
+          "maxLength": 64
+        },
+        "adminName": {
+          "type": "string",
+          "description": "Creator admin display name",
+          "maxLength": 60
+        },
+        "adminPinHash": {
+          "type": "string",
+          "description": "Salted SHA-256 hash of admin control PIN",
+          "maxLength": 128
+        },
+        "adminPinSalt": {
+          "type": "string",
+          "description": "Random hex salt for admin control PIN",
+          "maxLength": 64
+        },
+        "joinPassHash": {
+          "type": "string",
+          "description": "Legacy optional salted SHA-256 hash of group member password",
+          "maxLength": 128
+        },
+        "joinPassSalt": {
+          "type": "string",
+          "description": "Legacy optional random hex salt for group member password",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last settings update",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "slug",
+        "adminName",
+        "adminPinHash",
+        "adminPinSalt",
+        "createdAt"
+      ]
+    },
+    "GroupGame": {
+      "title": "GroupGame",
+      "description": "Game entry inside a private Co-Op group catalog",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique game ID",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Game title",
+          "maxLength": 140
+        },
+        "price": {
+          "type": "number",
+          "description": "Current price in SR"
+        },
+        "old": {
+          "type": "number",
+          "description": "Original price before discount"
+        },
+        "order": {
+          "type": "number",
+          "description": "Display sort order"
+        },
+        "link": {
+          "type": "string",
+          "description": "Steam store URL",
+          "maxLength": 600
+        },
+        "img": {
+          "type": "string",
+          "description": "Cover image data URL or external URL",
+          "maxLength": 900000
+        },
+        "ar": {
+          "type": "number",
+          "description": "Cover aspect ratio"
+        },
+        "players": {
+          "type": "string",
+          "description": "Player count range",
+          "maxLength": 40
+        },
+        "desc": {
+          "type": "string",
+          "description": "Game summary description",
+          "maxLength": 1500
+        },
+        "goal": {
+          "type": "string",
+          "description": "Game objective description",
+          "maxLength": 1500
+        },
+        "sp": {
+          "type": "number",
+          "description": "Steam positive review percentage"
+        },
+        "sc": {
+          "type": "number",
+          "description": "Steam review count"
+        },
+        "screenshots": {
+          "type": "array",
+          "description": "List of screenshot URLs or compact image data URLs (max 10)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trailer": {
+          "type": "string",
+          "description": "YouTube or direct video trailer URL",
+          "maxLength": 600
+        },
+        "trailerPoster": {
+          "type": "string",
+          "description": "Trailer preview poster URL",
+          "maxLength": 200000
+        }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "GroupVote": {
+      "title": "GroupVote",
+      "description": "Group member vote record with player display name",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique member UID",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Member display name in the group",
+          "maxLength": 60
+        },
+        "v": {
+          "type": "array",
+          "description": "List of up to 3 voted game IDs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp ISO string of vote",
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "name", "v"]
+    },
     "Vote": {
       "title": "Vote",
-      "description": "User vote record for co-op games",
+      "description": "Legacy root vote record",
       "type": "object",
       "properties": {
         "uid": {
@@ -31,11 +239,35 @@
     }
   },
   "firestore": {
+    "/group_names/{slug}": {
+      "schema": {
+        "$ref": "#/entities/GroupNameLock"
+      },
+      "description": "Locks unique normalized group names so each group name has a single creator/admin"
+    },
+    "/groups/{groupId}": {
+      "schema": {
+        "$ref": "#/entities/Group"
+      },
+      "description": "Stores private group configuration keyed by uppercase 6-char group code"
+    },
+    "/groups/{groupId}/games/{gameId}": {
+      "schema": {
+        "$ref": "#/entities/GroupGame"
+      },
+      "description": "Stores the group-isolated catalog of games"
+    },
+    "/groups/{groupId}/votes/{uid}": {
+      "schema": {
+        "$ref": "#/entities/GroupVote"
+      },
+      "description": "Stores real-time votes and voter names scoped to a private group"
+    },
     "/votes/{uid}": {
       "schema": {
         "$ref": "#/entities/Vote"
       },
-      "description": "Stores user votes keyed by user uid for instant real-time synchronization across all players"
+      "description": "Legacy root votes collection"
     }
   }
 }

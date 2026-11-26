@@ -4,9 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Co-Op | ألعاب جماعية</title>
-  <meta name="description" content="تشكيلة هادية من الألعاب الجماعية على ستيم مع تصويت مباشر ولوحة تحكم للأدمن." />
+  <meta name="description" content="تشكيلة هادية من الألعاب الجماعية على ستيم مع تصويت مباشر وقروبات خاصة للأصدقاء." />
+  <meta name="theme-color" content="#08111f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Co-Op" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
   <meta property="og:title" content="Co-Op | ألعاب جماعية" />
-  <meta property="og:description" content="تشكيلة هادية من الألعاب الجماعية على ستيم مع تصويت مباشر ولوحة تحكم للأدمن." />
+  <meta property="og:description" content="تشكيلة هادية من الألعاب الجماعية على ستيم مع تصويت مباشر وقروبات خاصة للأصدقاء." />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
 
@@ -17,11 +25,70 @@
 </head>
 <body>
   <div id="splash"><span>Co-Op</span></div>
-  <div id="abar">
-    <span>🔐 وضع الأدمن — أي تعديل يظهر للكل مباشرة</span>
-    <span class="sv idle" id="sv">متصل</span>
-    <button id="aex">👁️ عرض كمتفرج</button>
-  </div>
+
+  <!-- Welcome Gate: Create or Join a Group -->
+  <section id="gate" aria-label="بوابة القروبات">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="gate-shell">
+      <div class="gate-card lux-card">
+        <div class="lux-corners" aria-hidden="true">
+          <span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span>
+        </div>
+        <div class="gate-head">
+          <div class="gate-brand">Co-Op</div>
+          <h1>ساحة ألعاب القروب</h1>
+          <p id="gateSubtitle">أنشئ قروباً خاصاً بك وبأصدقائك أو ادخل باسم القروب لتصوتوا معاً.</p>
+        </div>
+
+        <div id="gateInviteBanner" class="gate-invite" hidden>
+          <span class="gate-invite-kicker">دعوة للانضمام</span>
+          <strong id="gateInviteGroup">قروب الأصدقاء</strong>
+          <p>اكتب اسمك ليظهر لأصدقائك عند التصويت، وادخل مباشرة.</p>
+        </div>
+
+        <div class="gate-tabs" role="tablist" aria-label="اختيار وضع الدخول">
+          <button type="button" class="gate-tab on" id="tabCreate" role="tab" aria-selected="true">إنشاء قروب</button>
+          <button type="button" class="gate-tab" id="tabJoin" role="tab" aria-selected="false">دخول لقروب</button>
+        </div>
+
+        <form id="cgForm" class="gate-form on" novalidate>
+          <div class="gate-field">
+            <label for="cgName">اسم القروب (فريد ولا يتكرر)</label>
+            <input id="cgName" type="text" maxlength="80" placeholder="مثال: شلة السهرة" required>
+          </div>
+          <div class="gate-field">
+            <label for="cgAdmin">اسمك (الأدمن الوحيد للقروب)</label>
+            <input id="cgAdmin" type="text" maxlength="60" placeholder="اكتب اسمك الظاهر للأعضاء" required>
+          </div>
+          <div id="cgErr" class="gate-err" role="alert"></div>
+          <button type="submit" class="btn btn-primary-lux gate-submit" id="cgSubmit">إنشاء القروب والدخول</button>
+          <p class="gate-note">منشئ القروب يملك رقم الآدمن لإدارة الألعاب، والأصدقاء يدخلون عبر الرابط مباشرة بدون كلمة مرور.</p>
+        </form>
+
+        <form id="jgForm" class="gate-form" novalidate>
+          <div class="gate-field" id="jgGroupField">
+            <label for="jgGroupName">اسم القروب</label>
+            <input id="jgGroupName" type="text" maxlength="80" placeholder="اكتب اسم القروب للانضمام" autocomplete="off" required>
+          </div>
+          <div class="gate-field">
+            <label for="jgMember">اسمك في القروب (يظهر عند التصويت)</label>
+            <input id="jgMember" type="text" maxlength="60" placeholder="اكتب اسمك ليظهر لأصدقائك" required>
+          </div>
+          <div id="jgErr" class="gate-err" role="alert"></div>
+          <button type="submit" class="btn btn-primary-lux gate-submit" id="jgSubmit">دخول إلى القروب</button>
+          <p class="gate-note" id="jgNote">ادخل بكتابة اسم القروب واسمك، أو عبر رابط المشاركة من الأدمن.</p>
+        </form>
+
+        <button type="button" class="gate-alt-link" id="gateSwitchCreate" hidden>أو أنشئ قروباً جديداً</button>
+
+        <div id="gateReturnWrap" class="gate-return-wrap" hidden>
+          <button type="button" class="btn out gate-return-btn" id="gateReturnBtn">العودة للقروب الحالي</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <nav>
     <div class="logo">Co-Op</div>
     <div class="ico">
@@ -46,18 +113,64 @@
     <h1 id="h1"></h1>
     <h2>Collection</h2>
     <p>تشكيلة هادية من الألعاب الجماعية اللي تجمع أخوياك وتضيف الحماس لسهراتكم</p>
+    <div id="heroGroupBar" class="hero-group-bar" hidden>
+      <div class="hg-shell">
+        <div class="lux-corners" aria-hidden="true">
+          <span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span>
+        </div>
+        <div class="hg-meta" id="hgMeta"></div>
+        <div class="hg-actions">
+          <button type="button" class="hg-btn primary" id="hgShare">مشاركة الرابط</button>
+          <button type="button" class="hg-btn" id="hgCreate">إنشاء قروب</button>
+          <button type="button" class="hg-btn" id="hgJoin">دخول لقروب</button>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <div class="chips" id="chips">
-    <button class="chip on" data-f="all">الكل</button>
-    <button class="chip" data-f="free">🎁 المجانية</button>
-    <button class="chip" data-f="sale">🏷️ العروض</button>
-    <button class="chip" data-f="fav">♥ المفضلة</button>
-    <button class="chip" data-f="lo">الأرخص</button>
-    <button class="chip" data-f="hi">الأغلى</button>
-    <button class="chip" id="vchip">الأكثر تصويتاً<span class="cb" id="vcb"></span></button>
-    <div class="sizes" id="sizes"></div>
+  <div class="toolbar-wrap">
+    <div class="mob-filter-bar" id="mobFilterBar">
+      <div class="mob-filter-wrap" id="mobFilterWrap">
+        <button type="button" class="mob-filter-trigger" id="mobFilterBtn" aria-expanded="false" aria-controls="mobFilterMenu">
+          <svg class="mf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          <span class="mf-label">تصفية: <strong id="mobFilterCurrent">الكل</strong></span>
+          <svg class="mf-chv" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="mob-filter-menu" id="mobFilterMenu" role="menu" hidden>
+          <div class="mf-sec-title">تصفية وترتيب الألعاب</div>
+          <div class="mf-grid">
+            <button type="button" class="mf-opt on" data-mf="all" role="menuitemradio" aria-checked="true">الكل</button>
+            <button type="button" class="mf-opt" data-mf="sale" role="menuitemradio" aria-checked="false">العروض</button>
+            <button type="button" class="mf-opt" data-mf="fav" role="menuitemradio" aria-checked="false">المفضلة</button>
+            <button type="button" class="mf-opt" data-mf="lo" role="menuitemradio" aria-checked="false">الأرخص</button>
+            <button type="button" class="mf-opt" data-mf="hi" role="menuitemradio" aria-checked="false">الأغلى</button>
+            <button type="button" class="mf-opt" id="mfVoteOpt" data-mf="votes" role="menuitem">الأكثر تصويتاً <span class="mf-vcount" id="mfVcb"></span></button>
+          </div>
+          <div class="mf-divider"></div>
+          <div class="mf-size-row">
+            <span class="mf-size-lbl">حجم العرض</span>
+            <div class="mf-size-btns" id="mobSizeBtns">
+              <button type="button" class="mf-sz" data-n="2" aria-label="عرض في عمودين">عمودين</button>
+              <button type="button" class="mf-sz" data-n="1" aria-label="عرض في عمود واحد">عمود واحد</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mob-count" id="mobCount" aria-live="polite"></div>
+    </div>
+    <div class="chips" id="chips">
+      <div class="chips-nav">
+        <button class="chip on" data-f="all">الكل</button>
+        <button class="chip" data-f="sale">🏷️ العروض</button>
+        <button class="chip" data-f="fav">♥ المفضلة</button>
+        <button class="chip" data-f="lo">الأرخص</button>
+        <button class="chip" data-f="hi">الأغلى</button>
+        <button class="chip" id="vchip">الأكثر تصويتاً<span class="cb" id="vcb"></span></button>
+      </div>
+      <div class="sizes" id="sizes"></div>
+    </div>
   </div>
+
   <div class="grid" id="grid"></div>
   <footer>
     <div class="ft-txt">
@@ -79,7 +192,6 @@
       </button>
     </div>
     <div class="dg" id="dg"></div>
-    <div id="dmedia"></div>
     <div id="dinfo"></div>
     <div id="dx"></div>
   </div>
@@ -118,22 +230,52 @@
     </div>
   </dialog>
 
-  <dialog id="pdlg">
-    <form id="pf">
-      <h3 id="pt">دخول الأدمن</h3>
-      <p id="pp" style="color:var(--mut);margin:6px 0 4px"></p>
-      <input id="pw" type="password" autocomplete="off" placeholder="كلمة السر">
-      <input id="pw2" type="password" autocomplete="off" placeholder="أعد كتابتها" style="display:none;margin-top:10px">
+  <!-- Group Share / Invite Modal -->
+  <dialog id="gsdlg">
+    <div class="gshare-box">
+      <h3>مشاركة القروب</h3>
+      <p class="gshare-sub" id="gsGroupName"></p>
+      <div class="gshare-row">
+        <span class="gshare-lbl">رابط المشاركة</span>
+        <div class="gshare-val-row">
+          <input id="gsLink" type="text" readonly dir="ltr">
+          <button type="button" class="btn btn-primary-lux gshare-cp" id="gsCopyLink">نسخ الرابط</button>
+        </div>
+        <button type="button" class="btn out gshare-native" id="gsNativeShare" hidden>مشاركة عبر تطبيقات الجهاز</button>
+      </div>
+      <div class="gshare-row gshare-pin" id="gsPinRow" hidden>
+        <span class="gshare-lbl">رقم الآدمن الخاص بك</span>
+        <div class="gshare-val-row">
+          <strong id="gsAdminPin" dir="ltr"></strong>
+          <button type="button" class="btn out gshare-cp" id="gsCopyPin">نسخ الرقم</button>
+        </div>
+        <p class="gshare-pin-note">احتفظ بهذا الرقم لإدارة القروب وتعديل الألعاب من أي جهاز.</p>
+      </div>
+      <button type="button" class="btn out" id="gsClose" style="width:100%;margin-top:14px;padding:12px">إغلاق</button>
+    </div>
+  </dialog>
+
+  <!-- Admin Number Login Modal -->
+  <dialog id="gadlg">
+    <form id="gaf">
+      <h3>دخول أدمن القروب</h3>
+      <p style="color:var(--mut);margin:4px 0 12px;font-size:14px;text-align:center">أدخل رقم الآدمن الخاص بمنشئ القروب للتحكم في الألعاب وإدارة القروب.</p>
+      <input id="gaPin" type="password" dir="ltr" autocomplete="off" placeholder="رقم الآدمن">
       <div class="row" style="margin-top:18px">
-        <button type="submit" class="btn" style="flex:1;padding:14px">تأكيد</button>
-        <button type="button" class="btn out" id="pcx" style="padding:14px 22px">إلغاء</button>
+        <button type="submit" class="btn btn-primary-lux" style="flex:1;padding:14px">تفعيل الإدارة</button>
+        <button type="button" class="btn out" id="gax" style="padding:14px 22px">إلغاء</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="dlg">
     <form method="dialog" id="f">
-      <h3 id="dt">لعبة</h3>
+      <div class="dlg-head">
+        <h3 id="dt">لعبة</h3>
+        <button type="button" class="dlg-x" id="dlgX" aria-label="إغلاق">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
       <label>اسم اللعبة</label><input id="fn" required>
       <div class="row">
         <div><label>السعر (SR)</label><input id="fp" type="number" step="0.01" min="0" required></div>
@@ -145,13 +287,21 @@
       </div>
       <label>رابط ستيم (اختياري)</label><input id="fl" dir="ltr" placeholder="https://store.steampowered.com/app/...">
       <label>هدف اللعبة</label><textarea id="fg" rows="2" maxlength="300" placeholder="وش المطلوب من اللاعبين؟"></textarea>
-      <label>رابط العرض الدعائي / التريلر (اختياري - YouTube أو MP4)</label><input id="ftr" dir="ltr" placeholder="https://www.youtube.com/watch?v=... أو رابط فيديو مباشر">
-      <label>صورة معاينة التريلر (اختياري)</label><input id="fpo" dir="ltr" placeholder="https://... (يستخدم الغلاف تلقائياً إن تُرك فارغاً)">
-      <label>لقطات الشاشة (كل رابط في سطر - اختياري)</label><textarea id="fss" dir="ltr" rows="3" placeholder="https://.../screenshot1.jpg&#10;https://.../screenshot2.jpg"></textarea>
-      <div class="ss-add-row">
-        <button type="button" class="btn out ss-upload-btn" id="fssBtn">+ رفع لقطات شاشة من جهازك</button>
-        <input id="fssi" type="file" accept="image/*" multiple hidden>
-      </div>
+      <details class="dlg-extra" id="dlgExtra">
+        <summary>
+          <span>التريلر ولقطات الشاشة (اختياري)</span>
+          <span class="dlg-extra-badge" id="dlgExtraBadge"></span>
+        </summary>
+        <div class="dlg-extra-body">
+          <label>رابط العرض الدعائي / التريلر (YouTube أو MP4)</label><input id="ftr" dir="ltr" placeholder="https://www.youtube.com/watch?v=... أو رابط فيديو مباشر">
+          <label>صورة معاينة التريلر (اختياري)</label><input id="fpo" dir="ltr" placeholder="https://... (يستخدم الغلاف تلقائياً)">
+          <label>لقطات الشاشة (كل رابط في سطر)</label><textarea id="fss" dir="ltr" rows="3" placeholder="https://.../screenshot1.jpg&#10;https://.../screenshot2.jpg"></textarea>
+          <div class="ss-add-row">
+            <button type="button" class="btn out ss-upload-btn" id="fssBtn">+ رفع لقطات شاشة من جهازك</button>
+            <input id="fssi" type="file" accept="image/*" multiple hidden>
+          </div>
+        </div>
+      </details>
       <label>صورة الغلاف</label>
       <div class="pz" id="pz"></div>
       <input id="fi" type="file" accept="image/*" hidden>
@@ -161,6 +311,194 @@
       </div>
     </form>
   </dialog>
+
+  <div id="offlineBar" class="offline-bar" hidden role="status" aria-live="polite">
+    <span class="offline-dot"></span>
+    <span>وضع عدم الاتصال — يتم عرض القائمة المحفوظة</span>
+  </div>
+
+  <dialog id="iosDlg">
+    <div class="ios-guide">
+      <div class="ios-guide-head">
+        <img src="/icon.svg" alt="Co-Op" width="46" height="46" class="ios-guide-ico">
+        <div>
+          <h3>تثبيت تطبيق Co-Op</h3>
+          <p>شغّل الموقع كتطبيق مستقل بدون شريط المتصفح</p>
+        </div>
+      </div>
+      <ol id="iosGuideSteps" class="ios-steps"></ol>
+      <button type="button" class="btn btn-primary-lux" id="iosDlgClose" style="width:100%;margin-top:16px">حسناً</button>
+    </div>
+  </dialog>
+
+  <div id="mobNav" class="mob-nav" role="navigation" aria-label="التنقل السفلي">
+    <span class="mob-pill" id="mobPill" aria-hidden="true"></span>
+    <button type="button" class="mob-tab on" data-mtab="games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+      <span class="mob-lbl">الألعاب</span>
+    </button>
+    <button type="button" class="mob-tab" data-mtab="votes">
+      <span class="mob-tab-ico">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z"/></svg>
+        <span class="mob-vb z" id="mobVb">0</span>
+      </span>
+      <span class="mob-lbl">التصويت</span>
+    </button>
+    <button type="button" class="mob-tab" data-mtab="share">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+      <span class="mob-lbl">مشاركة</span>
+    </button>
+    <button type="button" class="mob-tab" data-mtab="menu">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <span class="mob-lbl">القائمة</span>
+    </button>
+  </div>
+
+  <!-- Developer Room (/#admin0) -->
+  <section id="devOverlay" class="dev-overlay" hidden aria-label="غرفة المطور">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+
+    <!-- Auth / First-run setup gate -->
+    <div id="devAuthWrap" class="dev-auth-wrap">
+      <div class="dev-auth-card lux-card">
+        <div class="lux-corners" aria-hidden="true">
+          <span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span>
+        </div>
+        <div class="dev-auth-badge">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <span>Developer Room</span>
+        </div>
+        <h1 id="devAuthTitle">غرفة المطور الخاصة</h1>
+        <p id="devAuthSub">أدخل كلمة المرور للوصول إلى إحصائيات الموقع وإدارة القروبات.</p>
+
+        <form id="devAuthForm" class="dev-auth-form" novalidate>
+          <div class="dev-field">
+            <label for="devPass" id="devPassLabel">كلمة المرور</label>
+            <div class="dev-pass-wrap">
+              <input id="devPass" type="password" dir="ltr" autocomplete="off" placeholder="أدخل كلمة المرور" required>
+              <button type="button" class="dev-eye" id="devPassToggle" aria-label="إظهار أو إخفاء كلمة المرور">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="dev-field" id="devPassConfirmWrap" hidden>
+            <label for="devPassConfirm">تأكيد كلمة المرور</label>
+            <input id="devPassConfirm" type="password" dir="ltr" autocomplete="off" placeholder="أعد كتابة كلمة المرور">
+          </div>
+          <div id="devAuthErr" class="gate-err" role="alert"></div>
+          <button type="submit" class="btn btn-primary-lux dev-submit" id="devAuthSubmit">دخول إلى غرفة المطور</button>
+          <button type="button" class="btn out dev-back-site" id="devExitAuth">العودة للموقع</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Developer Dashboard -->
+    <div id="devDashWrap" class="dev-dash-wrap" hidden>
+      <header class="dev-topbar">
+        <div class="dev-top-title">
+          <div class="dev-top-kicker">Developer Console · Co-Op</div>
+          <h2>غرفة المطور وإحصائيات الموقع</h2>
+        </div>
+        <div class="dev-top-actions">
+          <button type="button" class="btn out dev-btn" id="devRefreshBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            <span>تحديث</span>
+          </button>
+          <button type="button" class="btn out dev-btn danger" id="devLogoutBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>خروج</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="dev-kpi-grid" id="devKpiGrid">
+        <article class="dev-kpi">
+          <div class="dev-kpi-ico">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
+          <div class="dev-kpi-body">
+            <span>إجمالي الغرف المُنشأة</span>
+            <strong id="kpiRoomsCreated">0</strong>
+            <small id="kpiRoomsSub">نشطة: 0 · محذوفة: 0</small>
+          </div>
+        </article>
+
+        <article class="dev-kpi">
+          <div class="dev-kpi-ico">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div class="dev-kpi-body">
+            <span>الزوار الذين دخلوا الموقع</span>
+            <strong id="kpiVisitors">0</strong>
+            <small id="kpiVisitorsSub">إجمالي الزيارات: 0</small>
+          </div>
+        </article>
+
+        <article class="dev-kpi">
+          <div class="dev-kpi-ico">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z"/></svg>
+          </div>
+          <div class="dev-kpi-body">
+            <span>المتفاعلون في الموقع</span>
+            <strong id="kpiEngaged">0</strong>
+            <small id="kpiEngagedSub">إجمالي التفاعلات: 0</small>
+          </div>
+        </article>
+
+        <article class="dev-kpi">
+          <div class="dev-kpi-ico">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div class="dev-kpi-body">
+            <span>الألعاب والأصوات النشطة</span>
+            <strong id="kpiGamesVotes">0</strong>
+            <small id="kpiGamesVotesSub">ألعاب: 0 · أصوات: 0</small>
+          </div>
+        </article>
+      </div>
+
+      <div class="dev-breakdown" id="devBreakdown">
+        <div class="dev-bd-pill"><span>زوار آخر 24 ساعة</span><strong id="bd24h">0</strong></div>
+        <div class="dev-bd-pill"><span>عمليات التصويت</span><strong id="bdVotes">0</strong></div>
+        <div class="dev-bd-pill"><span>انضمامات القروبات</span><strong id="bdJoins">0</strong></div>
+        <div class="dev-bd-pill"><span>إضافات وتعديلات الألعاب</span><strong id="bdEdits">0</strong></div>
+      </div>
+
+      <section class="dev-panel">
+        <div class="dev-panel-head">
+          <div>
+            <h3>إدارة القروبات</h3>
+            <p id="devGroupsCountNote">يمكنك معاينة القروبات النشطة أو حذف أي قروب أو مجموعة قروبات.</p>
+          </div>
+          <div class="dev-panel-tools">
+            <input id="devGroupSearch" type="search" placeholder="ابحث باسم القروب أو الكود أو الأدمن...">
+            <button type="button" class="btn out dev-bulk-del" id="devBulkDelBtn" hidden>
+              حذف المحدد (<span id="devSelCount">0</span>)
+            </button>
+          </div>
+        </div>
+        <div class="dev-select-bar" id="devSelectBar" hidden>
+          <label class="dev-check-all">
+            <input type="checkbox" id="devSelectAll">
+            <span>تحديد الكل الظاهر</span>
+          </label>
+          <span class="dev-sel-hint" id="devSelHint"></span>
+        </div>
+        <div id="devGroupsList" class="dev-groups-list"></div>
+      </section>
+
+      <section class="dev-panel dev-activity-panel">
+        <div class="dev-panel-head">
+          <div>
+            <h3>آخر التفاعلات</h3>
+            <p>أحدث الحركات داخل الموقع والقروبات</p>
+          </div>
+        </div>
+        <div id="devActivityList" class="dev-activity-list"></div>
+      </section>
+    </div>
+  </section>
 
   <script type="module" src="/src/main.ts"></script>
 </body>
