@@ -796,6 +796,27 @@ function getGalleryImages(g: Game): string[] {
   return out;
 }
 
+let activeSteamHls: any = null;
+let steamHlsLoad: Promise<any> | null = null;
+function disposeSteamTrailer() {
+  if (activeSteamHls) { activeSteamHls.destroy(); activeSteamHls = null; }
+  document.querySelectorAll<HTMLVideoElement>('.trailer-player').forEach(video => video.pause());
+}
+function loadSteamHls(): Promise<any> {
+  if ((window as any).Hls) return Promise.resolve((window as any).Hls);
+  if (steamHlsLoad) return steamHlsLoad;
+  steamHlsLoad = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+    script.async = true;
+    script.onload = () => (window as any).Hls
+      ? resolve((window as any).Hls) : reject(new Error('HLS script not initialized'));
+    script.onerror = () => reject(new Error('HLS script failed to load'));
+    document.head.appendChild(script);
+  }).catch(e => { steamHlsLoad = null; throw e; });
+  return steamHlsLoad;
+}
+
 function parseTrailerEmbed(url?: string): { type: 'youtube' | 'video'; src: string } | null {
   const raw = (url || '').trim();
   if (!raw) return null;
@@ -991,10 +1012,38 @@ function wireCoverDeck(container: HTMLElement | null, g: Game, slides: MediaSlid
       const startTrailer = () => {
         const box = $('dtrailer');
         if (!box) return;
-        box.innerHTML =
-          sl.trailerType === 'youtube'
-            ? `<iframe class="trailer-player" src="${esc(sl.src)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-            : `<video class="trailer-player" src="${esc(sl.src)}" ${sl.poster ? `poster="${esc(sl.poster)}"` : ''} controls autoplay playsinline></video>`;
+        disposeSteamTrailer();
+        if (sl.trailerType === 'youtube') {
+          box.innerHTML = `<iframe class="trailer-player" src="${esc(sl.src)}" title="${esc(g.name)} Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+          return;
+        }
+        box.innerHTML = `<video class="trailer-player" ${sl.poster ? `poster="${esc(sl.poster)}"` : ''} controls autoplay playsinline></video><a class="trailer-fallback-link" href="${esc(sl.src)}" target="_blank" rel="noopener" style="display:none;margin:12px;color:inherit;text-decoration:underline">تعذّر تشغيل الفيديو؟ افتحه مباشرة</a>`;
+        const video = box.querySelector<HTMLVideoElement>('video');
+        const fallback = box.querySelector<HTMLElement>('.trailer-fallback-link');
+        if (!video) return;
+        const showFallback = () => { if (fallback) fallback.style.display = 'inline-block'; };
+        video.addEventListener('error', showFallback);
+        const isHls = /\\.m3u8(?:[?#]|$)/i.test(sl.src);
+        if (!isHls || video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = sl.src;
+          void video.play().catch(() => {});
+          return;
+        }
+        void loadSteamHls().then(Hls => {
+          if (!Hls.isSupported() || !document.body.contains(video)) { showFallback(); return; }
+          const player = new Hls({ enableWorker: true, maxBufferLength: 30 });
+          activeSteamHls = player;
+          player.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean }) => {
+            if (data.fatal) {
+              showFallback();
+              player.destroy();
+              if (activeSteamHls === player) activeSteamHls = null;
+            }
+          });
+          player.on(Hls.Events.MANIFEST_PARSED, () => { void video.play().catch(() => {}); });
+          player.loadSource(sl.src);
+          player.attachMedia(video);
+        }).catch(showFallback);
       };
       const tBtn = $('dtrailerBtn');
       if (tBtn) {
