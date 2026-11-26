@@ -1,6 +1,5 @@
 // Firebase Client Configuration and Multi-Group Firestore Service
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
   collection,
